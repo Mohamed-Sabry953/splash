@@ -735,7 +735,6 @@ class PlayerRig {
     final endShorts = Offset.lerp(top, knee, 0.46)!;
     final sockTop = Offset.lerp(knee, ankle, 0.42)!;
     final band = Offset.lerp(sockTop, ankle, 0.1)!;
-    final (bootPath, solePath) = _boot(ankleL, toeL, sign, toeOut);
     // The green stripe down the side of the shorts: along the middle of the
     // leg from the side, at the outer edge of it from the front.
     final along = _unit(endShorts - top);
@@ -765,51 +764,77 @@ class PlayerRig {
         shorts,
       ),
       BodyPart(stripe, stripeRole),
-      BodyPart(bootPath, boot),
-      BodyPart(solePath, sole, shaded: false),
+      ..._boot(ankleL, toeL, sign, toeOut, boot, sole),
     ];
   }
 
-  /// A boot: a heel, a sole and a toe, from the ankle to the toe, and the
-  /// sole of it. It is as wide as a foot is: seen from the front it is a
-  /// small block, not a line, and the toe turns out as the legs spread.
-  (Path, Path) _boot(_P ankleL, _P toeL, double sign, double toeOut) {
+  /// A boot: the upper (a heel and a toe, from the ankle to the toe), the
+  /// sole under it, three studs under the sole, and the laces on top. It is as
+  /// wide as a foot is: seen from the front it is a small block, not a line,
+  /// and the toe turns out as the legs spread.
+  List<BodyPart> _boot(
+    _P ankleL,
+    _P toeL,
+    double sign,
+    double toeOut,
+    BodyRole boot,
+    BodyRole sole,
+  ) {
     final f = toeL.xy - ankleL.xy;
     final length = f.distance;
     final u = f / length; // along the foot
     final v = Offset(-u.dy, u.dx); // towards the sole
-    final outline = <(double, double)>[
-      (-4.4, -4.6),
-      (-5.2, 3.2),
-      (-1.5, 5.2),
-      (length - 2.5, 5.2),
-      (length + 2.2, 3.0),
-      (length + 2.8, 0.2),
-      (length - 2.0, -3.6),
-      (3.5, -4.8),
-    ];
-    final sole = <(double, double)>[
-      (-5.2, 3.7),
-      (-1.5, 5.2),
-      (length - 2.5, 5.2),
-      (length + 2.2, 3.7),
-      (length + 2.3, 2.9),
-      (-5.3, 2.7),
-    ];
-    // The outline on both sides of the foot, seen from where we are: the toe
-    // goes farther out than the heel when the foot is turned out.
+    // The foot, in its own units: [along] it, [across] it towards the sole, and
+    // [z] to the side. The toe goes farther out than the heel when the foot is
+    // turned out.
     final out = sign * math.sin(toeOut);
-    List<Offset> points(List<(double, double)> shape) => [
-      for (final side in const [-4.0, 4.0])
-        for (final (along, across) in shape)
-          _w(
-            _P(
-              ankleL.xy + u * along + v * across,
-              ankleL.z + side + out * along,
-            ),
-          ),
+    Offset on(double along, double across, [double z = 0]) =>
+        _w(_P(ankleL.xy + u * along + v * across, ankleL.z + z + out * along));
+    List<Offset> hullOf(List<(double, double)> shape, double half) => [
+      for (final side in [-half, half])
+        for (final (along, across) in shape) on(along, across, side),
     ];
-    return (_hull(points(outline)), _hull(points(sole)));
+
+    final upper = <(double, double)>[
+      (-4.4, -5.8),
+      (-5.2, 2.2),
+      (-1.5, 4.1),
+      (length - 2.5, 4.1),
+      (length + 2.2, 2.4),
+      (length + 2.8, 0.0),
+      (length - 2.0, -3.8),
+      (3.5, -5.6),
+    ];
+    final plate = <(double, double)>[
+      (-5.2, 2.0),
+      (-1.5, 4.1),
+      (length - 2.5, 4.1),
+      (length + 2.2, 2.4),
+      (length + 2.4, 1.4),
+      (-5.3, 1.1),
+    ];
+    return [
+      BodyPart(_hull(hullOf(upper, 3.6)), boot),
+      BodyPart(_hull(hullOf(plate, 3.6)), sole, shaded: false),
+      // The studs: three, down from the plate to the ground.
+      for (final along in [-2.6, length * 0.5, length - 3.2])
+        BodyPart(
+          _tube(on(along, 4.6, -2.3), on(along, 4.6, 2.3), const [0.6, 0.6]),
+          BodyRole.trim,
+          shaded: false,
+        ),
+      // The laces: three short white bars across the top of the foot.
+      for (final along in [length * 0.3, length * 0.5, length * 0.7])
+        BodyPart(
+          _tube(
+            on(along, -3.3 + along * 0.04, -1.5),
+            on(along, -3.3 + along * 0.04, 1.5),
+            const [0.5, 0.5],
+          ),
+          BodyRole.white,
+          shaded: false,
+        ),
+    ];
   }
 
   /// The smallest convex shape that holds [points].
@@ -846,7 +871,7 @@ class PlayerRig {
     return path..close();
   }
 
-  /// An arm: skin, a fist, and the sleeve of the shirt over the top of it,
+  /// An arm: skin, a hand, and the sleeve of the shirt over the top of it,
   /// with a navy band at the end of the sleeve.
   List<BodyPart> _arm(
     _P shoulderL,
@@ -859,15 +884,11 @@ class PlayerRig {
     final s = _w(shoulderL);
     final e = _w(elbowL);
     final h = _w(handL);
-    final along = _unit(h - e);
     Offset onArm(double t) => Offset.lerp(s, e, t)!;
     return [
       BodyPart(_tube(s, e, const [5.5, 5.3, 4.6]), skin),
       BodyPart(_tube(e, h, const [4.6, 4.8, 3.7]), skin),
-      BodyPart(
-        _tube(h - along * 0.5, h + along * 3.2, const [3.7, 4.5, 3.9]),
-        skin,
-      ),
+      ..._hand(e, h, skin),
       BodyPart(
         _tube(s, onArm(sleeve), const [6.8, 6.4, 5.9], capB: 0.3),
         shirt,
@@ -882,6 +903,48 @@ class PlayerRig {
         ),
         BodyRole.trim,
         shaded: false,
+      ),
+    ];
+  }
+
+  /// A hand at the end of the forearm [e] to [h]: a palm, a thumb on the side
+  /// of the body (to the front of it from the side, to the middle of it from
+  /// the front), and the three fingers that show, a little curled.
+  List<BodyPart> _hand(Offset e, Offset h, BodyRole skin) {
+    final along = _unit(h - e);
+    final across = Offset(-along.dy, along.dx);
+    // Where the thumb is: to the front of the body, or towards its middle.
+    final forward = _w(const _P(Offset(1, 0))) - _w(const _P(Offset.zero));
+    final inward = Offset(hip.dx - h.dx, 0);
+    var side =
+        (forward.distance < 1e-6 ? Offset.zero : _unit(forward)) *
+            (1 - _front) +
+        (inward.distance < 1e-6 ? Offset.zero : _unit(inward)) * _front;
+    // (only the part of it that is across the hand)
+    side -= along * (side.dx * along.dx + side.dy * along.dy);
+    side = side.distance < 0.2 ? across : _unit(side);
+
+    // (a hand is a little larger than this, which is measured for a small one)
+    const grow = 1.14;
+    Offset at(double a, double k) => h + along * (a * grow) + side * (k * grow);
+    List<double> widths(List<double> w) => [for (final x in w) x * grow];
+    return [
+      BodyPart(
+        _tube(at(-0.6, 0), at(3.4, 0), widths(const [3.4, 4.2, 4.0])),
+        skin,
+      ),
+      for (final (k, length) in const [(-1.9, 3.4), (0.0, 3.8), (1.9, 3.2)])
+        BodyPart(
+          _tube(
+            at(2.8, k),
+            at(2.8 + length, k * 1.12),
+            widths(const [1.45, 1.3, 1.1]),
+          ),
+          skin,
+        ),
+      BodyPart(
+        _tube(at(1.0, 2.9), at(3.6, 3.7), widths(const [1.7, 1.4, 1.2])),
+        skin,
       ),
     ];
   }
