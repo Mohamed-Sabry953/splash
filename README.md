@@ -66,6 +66,18 @@ fills the player with the same number. Every square of the letters is matched to
 the player (left to right, top to bottom, green with green), and flows to it along a
 curve. The way back is the same with the player of the end of the story.
 
+## The app icon
+
+The icon of the app (the ball and the green 5, on a navy rounded square) is made from
+`tool/app_icon_source.jpg`:
+
+```sh
+pip install numpy pillow
+python tool/make_icons.py      # iOS (all the sizes), Android (adaptive, themed and plain)
+```
+
+![icon](docs/app_icon.png)
+
 ## If the logo changes
 
 ```sh
