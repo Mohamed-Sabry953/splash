@@ -502,6 +502,54 @@ void main() {
       expect(different, 0);
     });
 
+    test('the 5 is whole and in front when the ball has landed', () async {
+      // A point well inside the 5, where the ball is under it.
+      final five = L3bLogo.instance.five;
+      Offset? inside;
+      for (
+        var y = five.bounds.top;
+        y < five.bounds.bottom && inside == null;
+        y += 4
+      ) {
+        for (var x = five.bounds.left; x < five.bounds.right; x += 4) {
+          final p = Offset(x, y);
+          const margin = 14.0;
+          if ([
+                p,
+                p + const Offset(margin, 0),
+                p - const Offset(margin, 0),
+                p + const Offset(0, margin),
+                p - const Offset(0, margin),
+              ].every(five.path.contains) &&
+              L3bLogo.instance.ball.any(
+                (b) => (b.bounds.inflate(60)).contains(p),
+              ) &&
+              (p - L3bLogo.ballCenter).distance < L3bLogo.ballRadius) {
+            inside = p;
+            break;
+          }
+        }
+      }
+      expect(inside, isNotNull);
+      const size = ui.Size(390, 844);
+      final layout = SplashLayout.of(size);
+      final at = Offset(
+        layout.center.dx +
+            (inside!.dx - kLogoWidth / 2) * Scene.logoScale * layout.scale,
+        layout.center.dy +
+            (inside.dy - kLogoHeight / 2) * Scene.logoScale * layout.scale,
+      );
+      final image = await _draw(
+        (c, s) => SplashPainter(ms: SplashTimeline.land + 60).paint(c, s),
+      );
+      final pixels = await _pixels(image);
+      final i = (at.dy.round() * size.width.round() + at.dx.round()) * 4;
+      // The green of the 5, not the navy of the ball or a mix of the two.
+      expect(pixels[i], closeTo(0x8D, 4));
+      expect(pixels[i + 1], closeTo(0xC6, 4));
+      expect(pixels[i + 2], closeTo(0x41, 4));
+    });
+
     test('has nothing left of the effects once the shine is over', () async {
       final a = await _pixels(
         await _draw(

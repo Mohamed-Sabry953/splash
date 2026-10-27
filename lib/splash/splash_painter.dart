@@ -117,6 +117,65 @@ class _Shard {
   final double turn;
 }
 
+/// A piece of paper thrown up when he shouts "Siuuu".
+class _Confetti {
+  const _Confetti({
+    required this.angle,
+    required this.speed,
+    required this.width,
+    required this.height,
+    required this.turn,
+    required this.spin,
+    required this.flip,
+    required this.delay,
+    required this.life,
+    required this.color,
+  });
+
+  static List<_Confetti> burst({required int seed, required int count}) {
+    final random = math.Random(seed);
+    const colors = [
+      SplashPainter.navy,
+      SplashPainter.blue,
+      SplashPainter.green,
+      SplashPainter.green,
+      Color(0xFFB9DD83),
+    ];
+    return [
+      for (var i = 0; i < count; i++)
+        _Confetti(
+          angle: -math.pi * (0.1 + 0.8 * random.nextDouble()),
+          speed: 210 + random.nextDouble() * 190,
+          width: 2.6 + random.nextDouble() * 2,
+          height: 5.2 + random.nextDouble() * 3.4,
+          turn: random.nextDouble() * math.pi,
+          spin: (random.nextDouble() - 0.5) * 14,
+          flip: 6 + random.nextDouble() * 8,
+          delay: random.nextDouble() * 110,
+          life: 1000 + random.nextDouble() * 500,
+          color: colors[i % colors.length],
+        ),
+    ];
+  }
+
+  final double angle;
+
+  /// Units per second.
+  final double speed;
+  final double width;
+  final double height;
+  final double turn;
+  final double spin;
+
+  /// How fast it turns over (it is thin when seen edge on).
+  final double flip;
+
+  /// Milliseconds after the landing, and how long it lasts.
+  final double delay;
+  final double life;
+  final Color color;
+}
+
 /// One frame: every layer of the splash at [ms], painted on [canvas] in the
 /// units of the scene.
 class _Frame {
@@ -153,6 +212,8 @@ class _Frame {
     size: 1.2,
   );
 
+  static final List<_Confetti> _confetti = _Confetti.burst(seed: 31, count: 64);
+
   /// The player has his back to where the ball goes: he faces left.
   static const double _facing = -1;
 
@@ -165,8 +226,13 @@ class _Frame {
   void paint() {
     final shake = _shake();
     canvas.translate(shake.dx, shake.dy);
+    final zoom = _zoom();
+    if (zoom != 1) canvas.scale(zoom);
 
     _shadows();
+    _glow();
+    // The paper comes up from behind him.
+    _confettiBurst();
     _dust();
     _player();
 
@@ -176,7 +242,12 @@ class _Frame {
         ms > SplashTimeline.shineStart && ms < SplashTimeline.shineEnd;
     final pop = _logoIn;
     canvas.save();
-    canvas.scale(0.94 + 0.06 * pop);
+    // The logo comes in a little small and grows, and it takes the landing of
+    // the ball with a small bounce.
+    final landing = math.sin(
+      math.pi * seg(ms, SplashTimeline.land, SplashTimeline.land + 220),
+    );
+    canvas.scale(0.94 + 0.06 * pop + 0.022 * landing);
     // While it comes in, the logo fades as one piece: its parts overlap.
     if (shining || pop < 1) {
       canvas.saveLayer(
@@ -188,9 +259,9 @@ class _Frame {
         Paint()..color = Color.fromRGBO(0, 0, 0, pop),
       );
     }
-    // The text is behind the ball, until the ball comes home to where the 5
-    // is pressed into it.
-    final textOnTop = ms >= SplashTimeline.unformEnd - 100;
+    // The text is behind the ball, until the ball comes home: then the 5 is
+    // pressed into it.
+    final textOnTop = ms >= SplashTimeline.land;
     if (!textOnTop) _letters();
     _ball();
     if (textOnTop) _letters();
@@ -275,20 +346,38 @@ class _Frame {
       alpha =
           1 - seg(ms, SplashTimeline.formStart, SplashTimeline.formStart + 70);
     } else {
-      alpha = seg(
-        ms,
-        SplashTimeline.unformEnd - 70,
-        SplashTimeline.unformEnd + 30,
-      );
+      alpha = seg(ms, SplashTimeline.unformEnd - 90, SplashTimeline.land);
     }
     if (alpha <= 0) return;
     canvas.save();
     canvas.scale(Scene.logoScale);
     canvas.translate(-kLogoWidth / 2, -kLogoHeight / 2);
-    _fill(logo.five, alpha);
-    _fill(logo.swoosh, alpha);
-    for (final letter in logo.letters) {
-      _fill(letter, alpha);
+
+    // As the logo comes in, the pieces come one after the other: the 5, then
+    // the letters, each rising into its place a little past it, and the stroke
+    // of the 5 is drawn from its start to its tip.
+    final intro = ms < SplashTimeline.formStart;
+    double rise(double delay) =>
+        intro ? (1 - seg(ms, delay, delay + 230, Curves.easeOutBack)) * 30 : 0;
+    void piece(LogoPiece p, double delay) {
+      canvas.save();
+      canvas.translate(0, rise(delay));
+      _fill(p, alpha);
+      canvas.restore();
+    }
+
+    piece(logo.five, 0);
+    if (intro) {
+      final wipe = seg(ms, 30, 300, Curves.easeOutCubic);
+      canvas.save();
+      canvas.clipRect(Rect.fromLTWH(-50, 0, (kLogoWidth + 100) * wipe, 500));
+      _fill(logo.swoosh, alpha);
+      canvas.restore();
+    } else {
+      _fill(logo.swoosh, alpha);
+    }
+    for (var i = 0; i < logo.letters.length; i++) {
+      piece(logo.letters[i], 45.0 * (i + 1));
     }
     canvas.restore();
   }
@@ -657,6 +746,43 @@ class _Frame {
     }
   }
 
+  /// Where he stands when he has landed, and where his chest is.
+  Offset get _siuChest {
+    final rig = PlayerRig(
+      _poseAt(SplashTimeline.siuSettle),
+      ground: Scene.ground,
+      facing: _facing,
+    );
+    return Offset(rig.hip.dx, rig.hip.dy - 26);
+  }
+
+  /// A burst of paper from his chest when he lands: it goes up, turns over as
+  /// it goes, and falls.
+  void _confettiBurst() {
+    final age = ms - SplashTimeline.siuLand;
+    if (age <= 0 || age > 1700) return;
+    final origin = _siuChest;
+    _paint.style = PaintingStyle.fill;
+    for (final c in _confetti) {
+      final t = (age - c.delay) / 1000;
+      if (t <= 0 || t * 1000 >= c.life) continue;
+      final life = t * 1000 / c.life;
+      final x = origin.dx + math.cos(c.angle) * c.speed * t;
+      final y = origin.dy + math.sin(c.angle) * c.speed * t + 0.5 * 380 * t * t;
+      final alpha = seg(life, 0, 0.05) * (1 - seg(life, 0.62, 1));
+      if (alpha <= 0) continue;
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(c.turn + c.spin * t);
+      canvas.scale(1, math.cos(c.flip * t + c.turn));
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: c.width, height: c.height),
+        _paint..color = c.color.withValues(alpha: alpha),
+      );
+      canvas.restore();
+    }
+  }
+
   /// Short lines round the top of his head while he shouts "Siuuu".
   void _shoutRays() {
     final start = SplashTimeline.siuLand - 30;
@@ -722,6 +848,60 @@ class _Frame {
           ..color = shard.color.withValues(alpha: alpha),
       );
     }
+  }
+
+  /// A soft green light behind him when he lands: it flashes, and stays a
+  /// little while he shouts.
+  void _glow() {
+    const start = SplashTimeline.siuLand;
+    const end = SplashTimeline.unformStart + 220;
+    if (ms < start || ms > end) return;
+    final burst = seg(ms, start, start + 700, Curves.easeOutCubic);
+    final hold =
+        seg(ms, start, start + 120) *
+        (1 - seg(ms, SplashTimeline.unformStart - 100, end));
+    final alpha = 0.12 * hold + 0.34 * math.pow(1 - burst, 1.5).toDouble();
+    if (alpha <= 0.003) return;
+    final center = _siuChest;
+    final radius = 80 + 120 * burst;
+    _paint
+      ..style = PaintingStyle.fill
+      ..shader = RadialGradient(
+        colors: [
+          SplashPainter.green.withValues(alpha: alpha),
+          SplashPainter.green.withValues(alpha: alpha * 0.45),
+          SplashPainter.green.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.55, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, _paint);
+    _paint.shader = null;
+  }
+
+  /// The camera pushes in when something lands, and eases back; while he
+  /// shouts it pushes in slowly. (A factor on the size of everything.)
+  double _zoom() {
+    var zoom = 1.0;
+    for (final (at, amp) in [
+      (SplashTimeline.strike, 0.02),
+      (SplashTimeline.siuLand, 0.05),
+      (SplashTimeline.land, 0.022),
+    ]) {
+      final d = ms - at;
+      if (d < 0 || d > 800) continue;
+      zoom += amp * seg(ms, at, at + 45, Curves.easeOut) * math.exp(-d / 170);
+    }
+    zoom +=
+        0.02 *
+        seg(ms, SplashTimeline.siuLand, SplashTimeline.siuLand + 260) *
+        (1 -
+            seg(
+              ms,
+              SplashTimeline.unformStart - 80,
+              SplashTimeline.unformStart + 320,
+              Curves.easeInOut,
+            ));
+    return zoom;
   }
 
   /// The whole scene shakes a little when something lands (units).

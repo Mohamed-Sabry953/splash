@@ -192,7 +192,7 @@ class BallTrack {
       radius: rLogo,
       sx: 1 + 0.8 * squash,
       sy: sy,
-      fill: 1 - seg(ms, SplashTimeline.land + 10, SplashTimeline.land + 40),
+      fill: 1 - seg(ms, SplashTimeline.land, SplashTimeline.land + 14),
     );
   }
 }

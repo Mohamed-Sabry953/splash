@@ -341,7 +341,8 @@ abstract final class PlayerPoses {
     headTilt: _rad(-14),
     kickThigh: _rad(22),
     kickKnee: _rad(46),
-    kickFoot: _rad(60),
+    // (flat on the ground: the shin leans back by 24 degrees)
+    kickFoot: _rad(114),
     kickSide: _rad(25),
     plantThigh: _rad(22),
     plantKnee: _rad(46),
