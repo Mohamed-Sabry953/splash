@@ -1,55 +1,54 @@
 import 'package:flutter/animation.dart';
 
-/// When things happen in the splash, in milliseconds from its start. The
-/// splash is a story told in a few beats: the ball is dribbled in and lands,
-/// the 5 slams into the gap it left, its top bar shoots to the right, the
-/// letters follow, and a shine sweeps over the logo.
+/// When things happen in the splash, in milliseconds from its start.
+///
+/// The logo shows. The ball is thrown up; the letters turn into dust, and the
+/// dust into a player; the player kicks the ball into the goal and cheers;
+/// then the player turns back into the letters, the ball comes home, and a
+/// shine goes over the logo.
 abstract final class SplashTimeline {
-  /// The whole splash, including the moment the logo is left alone.
-  static const double total = 3400;
+  static const double total = 3900;
+
+  /// The logo comes in.
+  static const double logoIn = 300;
 
   // The ball.
-  static const double ballStart = 120;
-  static const double ballLand = 1150;
+  static const double squash = 360; // it crouches...
+  static const double launch = 500; // ...and is thrown up
+  static const double apex = 1240; // as high as it goes
+  static const double strike = 1620; // the player's foot meets it
+  static const double goal = 1920; // it reaches the net
+  static const double comeBack = 2340; // it leaves the net, for the logo
+  static const double land = 2960; // and is home
 
-  /// The ball touches the ground three times, each hop lower than the last.
-  static const List<double> hopStarts = [ballStart, 660, 960];
-  static const List<double> hopEnds = [660, 960, ballLand];
-  static const List<double> hopHeights = [250, 84, 26]; // logo units
-  static const List<double> hopSquash = [0.20, 0.11, 0.07];
+  // The letters become the player.
+  static const double formStart = 640;
+  static const double formEnd = 1260;
 
-  // The 5.
-  static const double fiveStart = 1250;
-  static const double fiveEnd = 1770;
+  // The player's moves.
+  static const double backswing = 1440;
+  static const double followThrough = 1760;
+  static const double jumpApex = 2080;
+  static const double jumpEnd = 2260;
 
-  /// About when the 5 lands in its place.
-  static const double fiveImpact = 1390;
+  // The player becomes the letters.
+  static const double unformStart = 2260;
+  static const double unformEnd = 2940;
 
-  // The stroke out of the 5.
-  static const double swooshStart = 1560;
-  static const double swooshEnd = 1990;
-
-  // The letters, one after the other.
-  static const double lettersStart = 1600;
-  static const double letterGap = 105;
-  static const double letterTime = 430;
-
-  // The shine over the whole logo.
-  static const double shineStart = 2250;
-  static const double shineEnd = 2900;
-
-  /// The splash only needs to wait this long after the shine to be at rest.
-  static const double restAt = shineEnd;
+  // The shine over the logo.
+  static const double shineStart = 3040;
+  static const double shineEnd = 3620;
 
   /// Things that can be felt: (when, what).
   static const List<(double, SplashBeat)> beats = [
-    (ballLand, SplashBeat.ballLands),
-    (fiveImpact, SplashBeat.fiveLands),
-    (swooshStart + 20, SplashBeat.swoosh),
+    (launch, SplashBeat.thrown),
+    (strike, SplashBeat.kick),
+    (goal, SplashBeat.goal),
+    (land, SplashBeat.home),
   ];
 }
 
-enum SplashBeat { ballLands, fiveLands, swoosh }
+enum SplashBeat { thrown, kick, goal, home }
 
 /// [t] mapped from [a, b] to 0..1 and then through [curve]; 0 before [a] and
 /// 1 after [b].

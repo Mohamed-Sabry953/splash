@@ -13,7 +13,7 @@ void main() {
     expect(find.byType(HomePage), findsNothing);
 
     // The splash, and the page fading in after it.
-    await tester.pump(const Duration(milliseconds: 3400));
+    await tester.pump(const Duration(milliseconds: 3900));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -27,7 +27,7 @@ void main() {
     expect(find.byType(L3bSplashScreen), findsOneWidget);
 
     // Let it finish: nothing is left running.
-    await tester.pump(const Duration(milliseconds: 3500));
+    await tester.pump(const Duration(milliseconds: 4000));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

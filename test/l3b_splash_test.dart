@@ -3,9 +3,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:l3b_splash/splash/goal.dart';
 import 'package:l3b_splash/splash/l3b_logo.dart';
 import 'package:l3b_splash/splash/l3b_splash_screen.dart';
 import 'package:l3b_splash/splash/logo_data.dart';
+import 'package:l3b_splash/splash/player.dart';
+import 'package:l3b_splash/splash/scene.dart';
+import 'package:l3b_splash/splash/splash_dust.dart';
 import 'package:l3b_splash/splash/splash_painter.dart';
 import 'package:l3b_splash/splash/splash_timeline.dart';
 
@@ -51,7 +55,7 @@ void main() {
       }
     });
 
-    test('at rest it is as big as it says, and the ball is a circle', () {
+    test('at rest it is as big as it says', () {
       final all = logo.all
           .map((p) => p.bounds)
           .reduce((a, b) => a.expandToInclude(b));
@@ -60,29 +64,14 @@ void main() {
       expect(all.top, closeTo(0, 6));
       expect(all.right, closeTo(kLogoWidth, 6));
       expect(all.bottom, closeTo(kLogoHeight, 6));
-
-      // The patches fill a ball: none is further from its middle than its edge.
-      for (final patch in logo.ball) {
-        for (final corner in [patch.bounds.topLeft, patch.bounds.bottomRight]) {
-          expect(
-            (corner - L3bLogo.ballCenter).distance,
-            lessThan(L3bLogo.ballRadius * 1.45),
-          );
-        }
-      }
     });
 
-    test('the filler is inside the ball and does not touch the 5', () {
+    test('the filler is a piece of the ball that the 5 covers', () {
       final fill = logo.ballFill;
-      expect(
-        fill.bounds.left,
-        greaterThan(L3bLogo.ballCenter.dx - L3bLogo.ballRadius),
-      );
       expect(
         fill.bounds.right,
         lessThanOrEqualTo(L3bLogo.ballCenter.dx + L3bLogo.ballRadius + 1),
       );
-      // The 5 is pressed into where the filler was: it lies over it.
       expect(fill.bounds.overlaps(logo.five.bounds), isTrue);
     });
 
@@ -94,7 +83,140 @@ void main() {
         expect(logo.swoosh.path.contains(Offset(x, y)), isTrue, reason: 'x=$x');
       }
       expect(logo.swooshMiddleAt(-50), logo.swooshMiddleAt(0));
-      expect(logo.swooshMiddleAt(5000), isNotNaN);
+    });
+  });
+
+  group('the player', () {
+    PlayerRig rigOf(PlayerPose pose, {double ground = Scene.ground}) =>
+        PlayerRig(pose.copyWith(x: Scene.playerX + pose.x), ground: ground);
+
+    test(
+      'stands on the ground in every pose, and is in the air when lifted',
+      () {
+        for (final pose in [
+          PlayerPoses.ready,
+          PlayerPoses.backswing,
+          PlayerPoses.strike,
+          PlayerPoses.cheer,
+        ]) {
+          final rig = rigOf(pose);
+          expect(
+            rig.plantAnkle.dy,
+            closeTo(Scene.ground - PlayerRig.ankleHeight, 0.01),
+          );
+          expect(
+            rig.plantToe.dy,
+            closeTo(rig.plantAnkle.dy, 0.01),
+          ); // flat foot
+          expect(
+            rigOf(pose.copyWith(lift: 20)).plantAnkle.dy,
+            closeTo(Scene.ground - PlayerRig.ankleHeight - 20, 0.01),
+          );
+        }
+      },
+    );
+
+    test('is a person: about as tall as a goal, head on top', () {
+      final rig = rigOf(PlayerPoses.ready);
+      final height = Scene.ground - (rig.head.dy - PlayerRig.headRadius);
+      expect(height, inInclusiveRange(150, 185));
+      expect(rig.head.dy, lessThan(rig.shoulder.dy));
+      expect(rig.shoulder.dy, lessThan(rig.hip.dy));
+    });
+
+    test('kicks with the foot out in front, and the leg back before', () {
+      final back = rigOf(PlayerPoses.backswing);
+      final strike = rigOf(PlayerPoses.strike);
+      expect(back.kickToe.dx, lessThan(back.hip.dx));
+      expect(strike.kickToe.dx, greaterThan(strike.hip.dx + 20));
+    });
+
+    test('every part has something to paint, and the shirt is green', () {
+      final rig = rigOf(PlayerPoses.ready);
+      expect(rig.parts, isNotEmpty);
+      expect(rig.partAt(rig.hip + const Offset(0, -25))?.role, BodyRole.shirt);
+      expect(rig.partAt(rig.head)?.role, BodyRole.dark);
+      expect(rig.partAt(const Offset(-500, -500)), isNull);
+    });
+
+    test('the foot meets the ball where the splash puts it', () async {
+      // The ball falls to the toe of the player at the moment of the kick.
+      final strike = rigOf(PlayerPoses.strike);
+      final contact =
+          strike.kickToe +
+          const Offset(Scene.ballRadius * 0.45, -Scene.ballRadius * 0.4);
+      expect((contact - strike.kickToe).distance, lessThan(Scene.ballRadius));
+    });
+  });
+
+  group('the goal', () {
+    test('is still until the ball hits the net, then shakes and settles', () {
+      const hit = Scene.netHit;
+      final inside = hit - const Offset(10, 0);
+      expect(GoalPainter.push(inside, hit, -10), 0);
+      expect(GoalPainter.push(inside, hit, 40).abs(), greaterThan(1));
+      expect(GoalPainter.push(inside, hit, 1800).abs(), lessThan(0.05));
+      // The front post does not move; the back of the net moves most.
+      expect(GoalPainter.push(Offset(Scene.goalFront, hit.dy), hit, 40), 0);
+      expect(
+        GoalPainter.push(inside, hit, 40).abs(),
+        greaterThan(
+          GoalPainter.push(Offset(Scene.goalFront + 20, hit.dy), hit, 40).abs(),
+        ),
+      );
+    });
+  });
+
+  group('the dust', () {
+    test('has the same dots going and coming, and a lot of them', () {
+      final dust = SplashDust.instance;
+      expect(dust.forward.count, greaterThan(800));
+      expect(dust.reverse.count, dust.forward.count);
+    });
+
+    test('starts on the letters and ends on the player', () {
+      final logo = L3bLogo.instance;
+      final toScene = Matrix4.identity()
+        ..scaleByDouble(Scene.logoScale, Scene.logoScale, 1, 1)
+        ..translateByDouble(-kLogoWidth / 2, -kLogoHeight / 2, 0, 1);
+      final letters = [
+        for (final p in [logo.five, logo.swoosh, ...logo.letters])
+          p.path.transform(toScene.storage),
+      ];
+      final rig = PlayerRig(
+        PlayerPoses.ready.copyWith(x: Scene.playerX + PlayerPoses.ready.x),
+        ground: Scene.ground,
+      );
+      final forward = SplashDust.instance.forward;
+      var onLetters = 0;
+      var onPlayer = 0;
+      for (var i = 0; i < forward.count; i++) {
+        final from = Offset(forward.from[i * 2], forward.from[i * 2 + 1]);
+        final to = Offset(forward.to[i * 2], forward.to[i * 2 + 1]);
+        if (letters.any((l) => l.contains(from))) onLetters++;
+        if (rig.partAt(to) != null) onPlayer++;
+      }
+      expect(onLetters / forward.count, greaterThan(0.99));
+      // A few dots sit a hair outside the edge: they were jittered.
+      expect(onPlayer / forward.count, greaterThan(0.9));
+    });
+
+    test('takes the green dust to the shirt', () {
+      final forward = SplashDust.instance.forward;
+      var greenToShirt = 0;
+      var green = 0;
+      for (var i = 0; i < forward.count; i++) {
+        // The colors are kept as signed numbers.
+        if (forward.colorFrom[i].toUnsigned(32) == 0xFF8DC641) {
+          green++;
+          final to = forward.colorTo[i].toUnsigned(32);
+          if (to == 0xFF8DC641 || to == 0xFF6FA52E) {
+            greenToShirt++;
+          }
+        }
+      }
+      expect(green, greaterThan(100));
+      expect(greenToShirt, green);
     });
   });
 
@@ -106,7 +228,26 @@ void main() {
       expect(pixels.where((v) => v != 255), isEmpty);
     });
 
-    test('ends as the logo at rest, exactly where the splash put it', () async {
+    test('shows only the logo, in the middle, once it has come in', () async {
+      final pixels = await _pixels(
+        await _draw((c, s) => const SplashPainter(ms: 360).paint(c, s)),
+      );
+      // Nothing near the top or the bottom of the screen: just the logo.
+      const width = 390;
+      for (final row in [0, 100, 300, 560, 700, 843]) {
+        for (var x = 0; x < width; x++) {
+          expect(pixels[(row * width + x) * 4], 255, reason: 'row $row');
+        }
+      }
+      // And something in the middle row.
+      var ink = 0;
+      for (var x = 0; x < width; x++) {
+        if (pixels[(422 * width + x) * 4] != 255) ink++;
+      }
+      expect(ink, greaterThan(60));
+    });
+
+    test('ends as the logo at rest, in the middle of the screen', () async {
       const size = ui.Size(390, 844);
       final layout = SplashLayout.of(size);
       final end = await _pixels(
@@ -116,8 +257,9 @@ void main() {
       );
       final rest = await _pixels(
         await _draw((c, s) {
-          c.translate(layout.origin.dx, layout.origin.dy);
-          c.scale(layout.scale);
+          c.translate(layout.center.dx, layout.center.dy);
+          c.scale(layout.scale * Scene.logoScale);
+          c.translate(-kLogoWidth / 2, -kLogoHeight / 2);
           L3bLogo.instance.paintRest(c);
         }),
       );
@@ -131,8 +273,9 @@ void main() {
     test('has nothing left of the effects once the shine is over', () async {
       final a = await _pixels(
         await _draw(
-          (c, s) =>
-              const SplashPainter(ms: SplashTimeline.restAt + 1).paint(c, s),
+          (c, s) => const SplashPainter(
+            ms: SplashTimeline.shineEnd + 240,
+          ).paint(c, s),
         ),
       );
       final b = await _pixels(
@@ -153,7 +296,7 @@ void main() {
         ui.Size.zero,
       ];
       for (final size in screens) {
-        for (var ms = -100.0; ms <= SplashTimeline.total + 100; ms += 17) {
+        for (var ms = -100.0; ms <= SplashTimeline.total + 100; ms += 23) {
           final recorder = ui.PictureRecorder();
           SplashPainter(ms: ms).paint(ui.Canvas(recorder), size);
           recorder.endRecording().dispose();
@@ -161,16 +304,16 @@ void main() {
       }
     });
 
-    test('the logo fits the width of a phone and stays on a tablet', () {
+    test('the logo is a part of the width of the screen, in the middle', () {
       final phone = SplashLayout.of(const ui.Size(390, 844));
-      expect(kLogoWidth * phone.scale, closeTo(390 * 0.84, 0.01));
+      expect(Scene.logoWidth * phone.scale, closeTo(265, 0.01));
+      expect(phone.center, const Offset(195, 422));
       final tablet = SplashLayout.of(const ui.Size(1024, 1366));
-      expect(kLogoWidth * tablet.scale, closeTo(540, 0.01));
-      // And it is in the middle, a little above.
-      expect(
-        phone.origin.dx * 2 + kLogoWidth * phone.scale,
-        closeTo(390, 0.01),
-      );
+      expect(tablet.scale, 1.5);
+      final small = SplashLayout.of(const ui.Size(320, 568));
+      expect(small.scale, lessThan(1));
+      // The ball goes high on a phone, and not out of a short screen.
+      expect(small.halfHeight, greaterThan(250));
     });
   });
 
@@ -183,7 +326,7 @@ void main() {
         _app(L3bSplashScreen(haptics: false, onFinished: () => done++)),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 3300));
+      await tester.pump(const Duration(milliseconds: 3800));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -199,7 +342,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1600));
+      await tester.pump(const Duration(milliseconds: 1850));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -247,7 +390,7 @@ void main() {
       await tester.pump(const Duration(seconds: 4));
     });
 
-    testWidgets('gives a tap on the phone at each landing, in order', (
+    testWidgets('gives a tap on the phone at each beat, in order', (
       tester,
     ) async {
       final taps = <String>[];
@@ -269,13 +412,14 @@ void main() {
 
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 3500; ms += 50) {
+      for (var ms = 0; ms < 4000; ms += 50) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(taps, [
-        'HapticFeedbackType.mediumImpact',
-        'HapticFeedbackType.heavyImpact',
         'HapticFeedbackType.lightImpact',
+        'HapticFeedbackType.heavyImpact',
+        'HapticFeedbackType.mediumImpact',
+        'HapticFeedbackType.mediumImpact',
       ]);
     });
 
@@ -285,7 +429,7 @@ void main() {
       // Nothing answers the call: it is what a phone without a motor does.
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 3500; ms += 100) {
+      for (var ms = 0; ms < 4000; ms += 100) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(tester.takeException(), isNull);

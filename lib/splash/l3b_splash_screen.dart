@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'splash_dust.dart';
 import 'splash_painter.dart';
 import 'splash_timeline.dart';
 
@@ -46,6 +47,9 @@ class _L3bSplashScreenState extends State<L3bSplashScreen>
   @override
   void initState() {
     super.initState();
+    // The dust that the letters turn into takes a moment to make: it is made
+    // before anything moves.
+    SplashDust.prepare();
     _controller =
         AnimationController(
             vsync: this,
@@ -95,9 +99,10 @@ class _L3bSplashScreenState extends State<L3bSplashScreen>
     for (final (at, beat) in SplashTimeline.beats) {
       if (ms < at || !_felt.add(beat)) continue;
       final tap = switch (beat) {
-        SplashBeat.ballLands => HapticFeedback.mediumImpact(),
-        SplashBeat.fiveLands => HapticFeedback.heavyImpact(),
-        SplashBeat.swoosh => HapticFeedback.lightImpact(),
+        SplashBeat.thrown => HapticFeedback.lightImpact(),
+        SplashBeat.kick => HapticFeedback.heavyImpact(),
+        SplashBeat.goal => HapticFeedback.mediumImpact(),
+        SplashBeat.home => HapticFeedback.mediumImpact(),
       };
       // Not every phone can vibrate: it is not worth an error.
       tap.catchError((_) {});
