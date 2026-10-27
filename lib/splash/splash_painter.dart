@@ -178,14 +178,22 @@ class _Frame {
     size: 1.2,
   );
 
-  /// The player at the moment of the kick, and where his foot meets the ball.
-  static final PlayerRig _strikeRig = PlayerRig(
-    PlayerPoses.strike.copyWith(x: Scene.playerX + PlayerPoses.strike.x),
+  /// The player has his back to the goal: he faces left.
+  static const double _facing = -1;
+
+  static PlayerRig _rig(PlayerPose pose) => PlayerRig(
+    pose.copyWith(x: Scene.playerX + pose.x),
     ground: Scene.ground,
+    facing: _facing,
   );
+
+  /// The player at the moment of the kick, and where the ball is then: just
+  /// above the toe of the foot that kicks it over his head, to the side of
+  /// the goal.
+  static final PlayerRig _strikeRig = _rig(PlayerPoses.strike);
   static final Offset _contact =
       _strikeRig.kickToe +
-      const Offset(Scene.ballRadius * 0.45, -Scene.ballRadius * 0.4);
+      const Offset(Scene.ballRadius * 0.55, -Scene.ballRadius * 0.85);
 
   /// How high the ball goes: near the top of the screen.
   Offset get _apex =>
@@ -304,7 +312,7 @@ class _Frame {
           (time - SplashTimeline.strike) /
           (SplashTimeline.goal - SplashTimeline.strike);
       final e = 1 - math.pow(1 - u, 1.5).toDouble();
-      final control = Offset(70, Scene.netHit.dy - 34);
+      final control = Offset(_contact.dx + 100, _contact.dy - 50);
       return _Ball(
         center: _bezier(_contact, control, Scene.netHit, e),
         radius: rGame,
@@ -497,76 +505,74 @@ class _Frame {
 
   /// How the player stands at [time].
   PlayerPose _poseAt(double time) {
-    PlayerPose pose;
-    if (time < SplashTimeline.backswing) {
-      pose = PlayerPose.lerp(
+    PlayerPose between(
+      PlayerPose a,
+      PlayerPose b,
+      double from,
+      double to,
+      Curve curve,
+    ) => PlayerPose.lerp(a, b, seg(time, from, to, curve));
+    final PlayerPose pose;
+    if (time < SplashTimeline.crouch) {
+      pose = between(
         PlayerPoses.ready,
-        PlayerPoses.backswing,
-        seg(
-          time,
-          SplashTimeline.formEnd,
-          SplashTimeline.backswing,
-          Curves.easeInOut,
-        ),
+        PlayerPoses.crouch,
+        SplashTimeline.formEnd,
+        SplashTimeline.crouch,
+        Curves.easeInOut,
+      );
+    } else if (time < SplashTimeline.takeOff) {
+      pose = between(
+        PlayerPoses.crouch,
+        PlayerPoses.takeOff,
+        SplashTimeline.crouch,
+        SplashTimeline.takeOff,
+        Curves.easeOut,
+      );
+    } else if (time < SplashTimeline.scissors) {
+      pose = between(
+        PlayerPoses.takeOff,
+        PlayerPoses.scissors,
+        SplashTimeline.takeOff,
+        SplashTimeline.scissors,
+        Curves.easeInOut,
       );
     } else if (time < SplashTimeline.strike) {
-      pose = PlayerPose.lerp(
-        PlayerPoses.backswing,
+      pose = between(
+        PlayerPoses.scissors,
         PlayerPoses.strike,
-        seg(
-          time,
-          SplashTimeline.backswing,
-          SplashTimeline.strike,
-          Curves.easeInCubic,
-        ),
+        SplashTimeline.scissors,
+        SplashTimeline.strike,
+        Curves.easeInOutCubic,
       );
-    } else if (time < SplashTimeline.followThrough) {
-      pose = PlayerPose.lerp(
+    } else if (time < SplashTimeline.fall) {
+      pose = between(
         PlayerPoses.strike,
-        PlayerPoses.follow,
-        seg(
-          time,
-          SplashTimeline.strike,
-          SplashTimeline.followThrough,
-          Curves.easeOutCubic,
-        ),
+        PlayerPoses.fall,
+        SplashTimeline.strike,
+        SplashTimeline.fall,
+        Curves.easeOut,
       );
+    } else if (time < SplashTimeline.lying) {
+      pose = between(
+        PlayerPoses.fall,
+        PlayerPoses.lying,
+        SplashTimeline.fall,
+        SplashTimeline.lying,
+        Curves.easeIn,
+      );
+    } else if (time < SplashTimeline.getUp) {
+      pose = PlayerPoses.lying;
     } else {
-      pose = PlayerPose.lerp(
-        PlayerPoses.follow,
+      pose = between(
+        PlayerPoses.lying,
         PlayerPoses.cheer,
-        seg(
-          time,
-          SplashTimeline.followThrough,
-          SplashTimeline.jumpApex,
-          Curves.easeInOut,
-        ),
+        SplashTimeline.getUp,
+        SplashTimeline.cheer,
+        Curves.easeInOutCubic,
       );
     }
-    // The jump: up when the ball is in, down again after the cheer.
-    var lift = pose.lift;
-    if (time >= SplashTimeline.followThrough) {
-      lift = time < SplashTimeline.jumpApex
-          ? lerpDouble(
-              8,
-              30,
-              Curves.easeOut.transform(
-                seg(
-                  time,
-                  SplashTimeline.followThrough,
-                  SplashTimeline.jumpApex,
-                ),
-              ),
-            )!
-          : lerpDouble(
-              30,
-              0,
-              Curves.easeIn.transform(
-                seg(time, SplashTimeline.jumpApex, SplashTimeline.jumpEnd),
-              ),
-            )!;
-    }
-    return pose.copyWith(lift: lift, x: Scene.playerX + pose.x);
+    return pose.copyWith(x: Scene.playerX + pose.x);
   }
 
   double get _playerAlpha {
@@ -583,19 +589,21 @@ class _Frame {
   void _player() {
     final alpha = _playerAlpha;
     if (alpha <= 0) return;
-    // A faint trail behind the leg as it kicks.
-    if (ms > SplashTimeline.strike - 90 && ms < SplashTimeline.strike + 70) {
-      const alphas = [0.20, 0.12, 0.06];
+    // A faint trail behind the leg as it swings over his head.
+    if (ms > SplashTimeline.scissors && ms < SplashTimeline.strike + 90) {
+      const alphas = [0.17, 0.10, 0.05];
       for (var i = alphas.length; i >= 1; i--) {
         PlayerRig(
-          _poseAt(ms - 16.0 * i),
+          _poseAt(ms - 9.0 * i),
           ground: Scene.ground,
+          facing: _facing,
         ).paintKickingLeg(canvas, alphas[i - 1] * alpha);
       }
     }
     PlayerRig(
       _poseAt(ms),
       ground: Scene.ground,
+      facing: _facing,
     ).paint(canvas, alpha: alpha, number: logo.five.path);
   }
 
@@ -635,18 +643,23 @@ class _Frame {
       ..style = PaintingStyle.fill
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
-    // The player's.
+    // The player's: under his body, small and faint when he is in the air.
     final playerAlpha = _playerAlpha;
     if (playerAlpha > 0) {
       final pose = _poseAt(ms);
-      final high = (pose.lift / 30).clamp(0.0, 1.0);
+      final rig = PlayerRig(pose, ground: Scene.ground, facing: _facing);
+      final high = ((Scene.ground - rig.hip.dy - 82) / 90).clamp(0.0, 1.0);
+      final flat = (pose.roll / 1.4).clamp(0.0, 1.0);
       _paint.color = SplashPainter.navy.withValues(
-        alpha: 0.13 * playerAlpha * fade * (1 - 0.5 * high),
+        alpha: 0.13 * playerAlpha * fade * (1 - 0.6 * high),
       );
       canvas.drawOval(
         Rect.fromCenter(
-          center: Offset(pose.x + 4, Scene.ground + 2),
-          width: 56 * (1 - 0.25 * high),
+          center: Offset(
+            lerpDouble(rig.hip.dx, (rig.hip.dx + rig.head.dx) / 2, flat)!,
+            Scene.ground + 2,
+          ),
+          width: (56 + 60 * flat) * (1 - 0.3 * high),
           height: 6,
         ),
         _paint,

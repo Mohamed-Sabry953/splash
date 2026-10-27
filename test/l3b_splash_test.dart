@@ -87,16 +87,18 @@ void main() {
   });
 
   group('the player', () {
-    PlayerRig rigOf(PlayerPose pose, {double ground = Scene.ground}) =>
-        PlayerRig(pose.copyWith(x: Scene.playerX + pose.x), ground: ground);
+    PlayerRig rigOf(PlayerPose pose) => PlayerRig(
+      pose.copyWith(x: Scene.playerX + pose.x),
+      ground: Scene.ground,
+      facing: -1,
+    );
 
     test(
-      'stands on the ground in every pose, and is in the air when lifted',
+      'stands on the ground when he stands, and is in the air when lifted',
       () {
         for (final pose in [
           PlayerPoses.ready,
-          PlayerPoses.backswing,
-          PlayerPoses.strike,
+          PlayerPoses.crouch,
           PlayerPoses.cheer,
         ]) {
           final rig = rigOf(pose);
@@ -116,36 +118,109 @@ void main() {
       },
     );
 
-    test('is a person: about as tall as a goal, head on top', () {
+    test('is a person: as tall as a goal, head on top', () {
       final rig = rigOf(PlayerPoses.ready);
       final height = Scene.ground - (rig.head.dy - PlayerRig.headRadius);
-      expect(height, inInclusiveRange(150, 185));
+      expect(height, inInclusiveRange(150, 190));
       expect(rig.head.dy, lessThan(rig.shoulder.dy));
       expect(rig.shoulder.dy, lessThan(rig.hip.dy));
     });
 
-    test('kicks with the foot out in front, and the leg back before', () {
-      final back = rigOf(PlayerPoses.backswing);
-      final strike = rigOf(PlayerPoses.strike);
-      expect(back.kickToe.dx, lessThan(back.hip.dx));
-      expect(strike.kickToe.dx, greaterThan(strike.hip.dx + 20));
+    test('faces left: his feet and his face are to the left of the hip', () {
+      final rig = rigOf(PlayerPoses.crouch);
+      expect(rig.kickToe.dx, lessThan(rig.hip.dx));
+      expect(rig.head.dx, lessThan(rig.hip.dx));
+    });
+
+    test('kicks over his head: flat in the air, the leg straight up', () {
+      final rig = rigOf(PlayerPoses.strike);
+      // The body is flat: the head is at the height of the hip, further
+      // towards the goal, and the leg that kicks is above them both.
+      expect((rig.head.dy - rig.hip.dy).abs(), lessThan(30));
+      expect(rig.head.dx, greaterThan(rig.hip.dx + 40));
+      expect(rig.kickToe.dy, lessThan(rig.hip.dy - 70));
+      expect((rig.kickToe.dx - rig.hip.dx).abs(), lessThan(30));
+      // And he is in the air.
+      expect(rig.hip.dy, lessThan(Scene.ground - 100));
+    });
+
+    test('lies on the ground on his back, not under it', () {
+      final rig = rigOf(PlayerPoses.lying);
+      for (final point in [
+        rig.hip,
+        rig.head,
+        rig.nearHand,
+        rig.farHand,
+        rig.kickAnkle,
+        rig.plantAnkle,
+      ]) {
+        expect(point.dy, lessThanOrEqualTo(Scene.ground + 0.5));
+      }
+      expect((rig.head.dy - rig.hip.dy).abs(), lessThan(30));
     });
 
     test('every part has something to paint, and the shirt is green', () {
       final rig = rigOf(PlayerPoses.ready);
       expect(rig.parts, isNotEmpty);
-      expect(rig.partAt(rig.hip + const Offset(0, -25))?.role, BodyRole.shirt);
-      expect(rig.partAt(rig.head)?.role, BodyRole.dark);
+      final chest = Offset.lerp(rig.hip, rig.shoulder, 0.5)!;
+      expect(rig.partAt(chest)?.role, BodyRole.shirt);
+      expect(
+        rig.partAt(rig.head + const Offset(-3, 3))?.role,
+        anyOf(BodyRole.skin, BodyRole.hair),
+      );
       expect(rig.partAt(const Offset(-500, -500)), isNull);
+      expect(PlayerRig.isGreen(BodyRole.sock), isTrue);
+      expect(PlayerRig.isGreen(BodyRole.skin), isFalse);
     });
 
-    test('the foot meets the ball where the splash puts it', () async {
-      // The ball falls to the toe of the player at the moment of the kick.
+    test(
+      'is whole in every pose: nothing is missing or in the wrong place',
+      () {
+        for (final pose in [
+          PlayerPoses.ready,
+          PlayerPoses.crouch,
+          PlayerPoses.takeOff,
+          PlayerPoses.scissors,
+          PlayerPoses.strike,
+          PlayerPoses.fall,
+          PlayerPoses.lying,
+          PlayerPoses.cheer,
+        ]) {
+          final rig = rigOf(pose);
+          // The joints are where the lengths of the body say.
+          expect(
+            (rig.kickKnee - rig.hip).distance,
+            closeTo(PlayerRig.thigh, 0.01),
+          );
+          expect(
+            (rig.kickAnkle - rig.kickKnee).distance,
+            closeTo(PlayerRig.shin, 0.01),
+          );
+          expect(
+            (rig.plantKnee - rig.hip).distance,
+            closeTo(PlayerRig.thigh, 0.01),
+          );
+          expect(
+            (rig.nearHand - rig.nearElbow).distance,
+            closeTo(PlayerRig.foreArm, 0.01),
+          );
+          for (final part in rig.parts) {
+            expect(part.path.getBounds().isEmpty, isFalse);
+          }
+        }
+      },
+    );
+
+    test('the ball is where the foot meets it: above the toe', () {
       final strike = rigOf(PlayerPoses.strike);
       final contact =
           strike.kickToe +
-          const Offset(Scene.ballRadius * 0.45, -Scene.ballRadius * 0.4);
-      expect((contact - strike.kickToe).distance, lessThan(Scene.ballRadius));
+          const Offset(Scene.ballRadius * 0.55, -Scene.ballRadius * 0.85);
+      expect(contact.dy, lessThan(strike.kickToe.dy));
+      expect(
+        (contact - strike.kickToe).distance,
+        lessThan(Scene.ballRadius * 1.5),
+      );
     });
   });
 
@@ -186,6 +261,7 @@ void main() {
       final rig = PlayerRig(
         PlayerPoses.ready.copyWith(x: Scene.playerX + PlayerPoses.ready.x),
         ground: Scene.ground,
+        facing: -1,
       );
       final forward = SplashDust.instance.forward;
       var onLetters = 0;

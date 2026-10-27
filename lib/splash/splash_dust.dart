@@ -37,18 +37,18 @@ class SplashDust {
     ];
 
     List<DustShape> player(PlayerPose pose) {
+      // He has his back to the goal.
       final rig = PlayerRig(
         pose.copyWith(x: Scene.playerX + pose.x),
         ground: Scene.ground,
+        facing: -1,
       );
       return [
         for (final part in rig.parts)
           DustShape(
             part.path,
             PlayerRig.colors[part.role]!,
-            part.role == BodyRole.shirt || part.role == BodyRole.farShirt
-                ? 0
-                : 1,
+            PlayerRig.isGreen(part.role) ? 0 : 1,
           ),
       ];
     }

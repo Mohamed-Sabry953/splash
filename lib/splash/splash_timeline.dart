@@ -16,8 +16,8 @@ abstract final class SplashTimeline {
   static const double squash = 360; // it crouches...
   static const double launch = 500; // ...and is thrown up
   static const double apex = 1240; // as high as it goes
-  static const double strike = 1620; // the player's foot meets it
-  static const double goal = 1920; // it reaches the net
+  static const double strike = 1650; // the player's foot meets it
+  static const double goal = 1930; // it reaches the net
   static const double comeBack = 2340; // it leaves the net, for the logo
   static const double land = 2960; // and is home
 
@@ -25,11 +25,15 @@ abstract final class SplashTimeline {
   static const double formStart = 640;
   static const double formEnd = 1260;
 
-  // The player's moves.
-  static const double backswing = 1440;
-  static const double followThrough = 1760;
-  static const double jumpApex = 2080;
-  static const double jumpEnd = 2260;
+  // The player's moves: down, up, over backwards, the kick, down on his back
+  // and up again, cheering.
+  static const double crouch = 1360;
+  static const double takeOff = 1460;
+  static const double scissors = 1560;
+  static const double fall = 1760;
+  static const double lying = 1870;
+  static const double getUp = 1990;
+  static const double cheer = 2200;
 
   // The player becomes the letters.
   static const double unformStart = 2260;

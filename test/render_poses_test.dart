@@ -14,12 +14,18 @@ void main() {
     Directory(dir!).createSync(recursive: true);
     final poses = {
       'ready': PlayerPoses.ready,
-      'backswing': PlayerPoses.backswing,
+      'crouch': PlayerPoses.crouch,
+      'takeOff': PlayerPoses.takeOff,
+      'scissors': PlayerPoses.scissors,
       'strike': PlayerPoses.strike,
-      'follow': PlayerPoses.follow,
+      'fall': PlayerPoses.fall,
+      'lying': PlayerPoses.lying,
       'cheer': PlayerPoses.cheer,
     };
-    const cell = 220.0;
+    const columns = 4;
+    const cellWidth = 230.0;
+    const cellHeight = 250.0;
+    final rows = (poses.length + columns - 1) ~/ columns;
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
     canvas.scale(2);
@@ -27,8 +33,11 @@ void main() {
     var i = 0;
     for (final entry in poses.entries) {
       canvas.save();
-      canvas.translate(cell * i + cell / 2, 130);
-      final rig = PlayerRig(entry.value, ground: 96);
+      canvas.translate(
+        cellWidth * (i % columns) + cellWidth / 2,
+        cellHeight * (i ~/ columns) + 150,
+      );
+      final rig = PlayerRig(entry.value.copyWith(x: 0), ground: 96, facing: -1);
       canvas.drawLine(
         const ui.Offset(-100, 96),
         const ui.Offset(100, 96),
@@ -41,8 +50,8 @@ void main() {
       i++;
     }
     final image = await recorder.endRecording().toImage(
-      (cell * poses.length * 2).round(),
-      (260 * 2).round(),
+      (cellWidth * columns * 2).round(),
+      (cellHeight * rows * 2).round(),
     );
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     File('$dir/poses.png').writeAsBytesSync(bytes!.buffer.asUint8List());
