@@ -33,8 +33,8 @@ class BallState {
 
 /// Where the ball is at every moment of the story: it crouches and is thrown
 /// up to the top of the screen, it falls on the foot of the player (who
-/// kicks it over his head), it goes through the goal and out of the screen to
-/// the right, and it comes back in from the left, to the logo.
+/// kicks it over his head), it goes out of the screen to the right, and it
+/// comes back in from the left, to the logo.
 class BallTrack {
   const BallTrack({required this.halfWidth, required this.halfHeight});
 
@@ -42,8 +42,6 @@ class BallTrack {
   /// up and down.
   final double halfWidth;
   final double halfHeight;
-
-  static const double gravity = 2400; // units per second, squared
 
   /// The player at the moment of the kick, and where the ball is then: just
   /// above the toe of the foot that kicks it over his head.
@@ -61,57 +59,27 @@ class BallTrack {
 
   // --- the shot -----------------------------------------------------------
 
-  /// How long, in seconds, the ball takes from the foot to the mouth of the
-  /// goal.
-  static const double _toGoal =
-      (SplashTimeline.goal - SplashTimeline.strike) / 1000;
+  /// How fast the ball leaves the foot (units per second): to the right, a
+  /// little up, and almost flat.
+  static const Offset shotVelocity = Offset(720, -60);
 
-  /// Its speed to the right, and the speed down that takes it through the
-  /// mouth of the goal when gravity pulls it.
-  static final double _vx = (Scene.goalMouth.dx - contact.dx) / _toGoal;
-  static final double _vy =
-      ((Scene.goalMouth.dy - contact.dy) - 0.5 * gravity * _toGoal * _toGoal) /
-      _toGoal;
+  /// How much it falls on the way (units per second, squared).
+  static const double shotGravity = 500;
 
-  /// The ball after the kick, [tau] seconds on: it goes through the goal,
-  /// bounces on the pitch, and goes on to the right.
-  static Offset shotAt(double tau) {
-    const floor = Scene.ground - Scene.ballRadius - 1;
-    return Offset(
-      contact.dx + _vx * tau,
-      fallOnto(floor, contact.dy, _vy, tau, bounce: 0.55),
-    );
-  }
+  /// The ball after the kick, [tau] seconds on: it goes on to the right.
+  static Offset shotAt(double tau) => Offset(
+    contact.dx + shotVelocity.dx * tau,
+    contact.dy + shotVelocity.dy * tau + 0.5 * shotGravity * tau * tau,
+  );
 
   /// When, in milliseconds, the ball has gone out of the screen on the right.
   double get exit {
-    final tau = (halfWidth + Scene.ballRadius * 2 - contact.dx) / _vx;
+    final tau =
+        (halfWidth + Scene.ballRadius * 2 - contact.dx) / shotVelocity.dx;
     return math.min(
       SplashTimeline.strike + tau * 1000,
       SplashTimeline.comeBack - 60,
     );
-  }
-
-  /// Height of something thrown at [vy] (negative is up) from [y0] after [t]
-  /// seconds, that keeps [bounce] of its speed each time it hits [floor].
-  static double fallOnto(
-    double floor,
-    double y0,
-    double vy,
-    double t, {
-    double bounce = 0.34,
-  }) {
-    var y = y0;
-    var v = vy;
-    for (var i = 0; i < 5; i++) {
-      final reach =
-          (-v + math.sqrt(v * v + 2 * gravity * (floor - y))) / gravity;
-      if (t <= reach) return y + v * t + 0.5 * gravity * t * t;
-      v = -(v + gravity * reach) * bounce;
-      y = floor;
-      t -= reach;
-    }
-    return floor;
   }
 
   static Offset _bezier(Offset a, Offset c, Offset b, double t) {

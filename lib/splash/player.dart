@@ -110,9 +110,9 @@ class PlayerPose {
 double _rad(double degrees) => degrees * math.pi / 180;
 
 /// The poses of the story, in the order they come. The player has his back to
-/// the goal: he looks up at the ball, jumps, falls backwards and kicks it
-/// over his head into the goal behind him (a bicycle kick), then lands on
-/// his back and jumps up cheering.
+/// where the ball goes: he looks up at the ball, jumps, falls backwards and
+/// kicks it over his head (a bicycle kick), then lands on his back and jumps
+/// up cheering.
 abstract final class PlayerPoses {
   /// Just formed: looking up at the ball, the weight on one leg.
   static final PlayerPose ready = PlayerPose(
@@ -245,7 +245,7 @@ abstract final class PlayerPoses {
     x: 38,
   );
 
-  /// Both arms up: the goal.
+  /// Both arms up, cheering.
   static final PlayerPose cheer = PlayerPose(
     lean: _rad(-4),
     headTilt: _rad(-12),

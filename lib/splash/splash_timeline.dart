@@ -3,9 +3,9 @@ import 'package:flutter/animation.dart';
 /// When things happen in the splash, in milliseconds from its start.
 ///
 /// The logo shows. The ball is thrown up; the letters turn into dust, and the
-/// dust into a player; the player kicks the ball into the goal and cheers;
-/// then the player turns back into the letters, the ball comes home, and a
-/// shine goes over the logo.
+/// dust into a player; the player kicks the ball out of the screen with a
+/// bicycle kick and cheers; then the player turns back into the letters, the
+/// ball comes home from the other side, and a shine goes over the logo.
 abstract final class SplashTimeline {
   static const double total = 3900;
 
@@ -17,7 +17,6 @@ abstract final class SplashTimeline {
   static const double launch = 500; // ...and is thrown up
   static const double apex = 1240; // as high as it goes
   static const double strike = 1650; // the player's foot meets it
-  static const double goal = 1850; // it goes through the goal
   static const double comeBack = 2540; // it comes back in from the left
   static const double land = 2960; // and is home
 
@@ -47,12 +46,11 @@ abstract final class SplashTimeline {
   static const List<(double, SplashBeat)> beats = [
     (launch, SplashBeat.thrown),
     (strike, SplashBeat.kick),
-    (goal, SplashBeat.goal),
     (land, SplashBeat.home),
   ];
 }
 
-enum SplashBeat { thrown, kick, goal, home }
+enum SplashBeat { thrown, kick, home }
 
 /// [t] mapped from [a, b] to 0..1 and then through [curve]; 0 before [a] and
 /// 1 after [b].

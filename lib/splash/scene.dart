@@ -28,14 +28,4 @@ abstract final class Scene {
 
   /// The ball in the game is smaller than the one in the logo.
   static const double ballRadius = 13;
-
-  /// The goal, seen from the side: the front post, the back of the roof and
-  /// how much the back post leans, and how tall it is.
-  static const double goalFront = 94;
-  static const double goalBack = 158;
-  static const double goalLean = 12;
-  static const double goalHeight = 92;
-
-  /// Where the ball goes through the front of the goal.
-  static const Offset goalMouth = Offset(goalFront + 6, ground - 66);
 }

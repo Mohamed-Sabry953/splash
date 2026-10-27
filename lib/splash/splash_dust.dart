@@ -37,7 +37,7 @@ class SplashDust {
     ];
 
     List<DustShape> player(PlayerPose pose) {
-      // He has his back to the goal.
+      // He has his back to where the ball goes.
       final rig = PlayerRig(
         pose.copyWith(x: Scene.playerX + pose.x),
         ground: Scene.ground,

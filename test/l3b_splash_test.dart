@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:l3b_splash/splash/ball_track.dart';
-import 'package:l3b_splash/splash/goal.dart';
 import 'package:l3b_splash/splash/l3b_logo.dart';
 import 'package:l3b_splash/splash/l3b_splash_screen.dart';
 import 'package:l3b_splash/splash/logo_data.dart';
@@ -119,7 +118,7 @@ void main() {
       },
     );
 
-    test('is a person: as tall as a goal, head on top', () {
+    test('is a person: about 170 units tall, head on top', () {
       final rig = rigOf(PlayerPoses.ready);
       final height = Scene.ground - (rig.head.dy - PlayerRig.headRadius);
       expect(height, inInclusiveRange(150, 190));
@@ -136,7 +135,7 @@ void main() {
     test('kicks over his head: flat in the air, the leg straight up', () {
       final rig = rigOf(PlayerPoses.strike);
       // The body is flat: the head is at the height of the hip, further
-      // towards the goal, and the leg that kicks is above them both.
+      // towards where the ball goes, and the leg that kicks is above them both.
       expect((rig.head.dy - rig.hip.dy).abs(), lessThan(30));
       expect(rig.head.dx, greaterThan(rig.hip.dx + 40));
       expect(rig.kickToe.dy, lessThan(rig.hip.dy - 70));
@@ -225,49 +224,6 @@ void main() {
     });
   });
 
-  group('the goal', () {
-    test('has no net: a post, a bar and a post, and nothing between', () async {
-      final pixels = await _pixels(
-        await _draw((c, s) {
-          c.translate(s.width / 2, s.height / 2);
-          const GoalPainter().paint(c);
-        }),
-      );
-      const width = 390;
-      int at(double x, double y) {
-        final px = (195 + x).round();
-        final py = (422 + y).round();
-        return pixels[(py * width + px) * 4];
-      }
-
-      // The post in front, and the bar, are there...
-      expect(at(Scene.goalFront, Scene.ground - 40), lessThan(100));
-      expect(
-        at(Scene.goalFront + 30, Scene.ground - Scene.goalHeight),
-        lessThan(100),
-      );
-      // ...and the inside of the goal is empty: no lines of a net.
-      for (
-        var y = Scene.ground - Scene.goalHeight + 8;
-        y < Scene.ground - 6;
-        y += 3
-      ) {
-        for (var x = Scene.goalFront + 8; x < Scene.goalBack - 6; x += 3) {
-          expect(at(x, y), 255, reason: 'x=$x y=$y');
-        }
-      }
-    });
-
-    test('is wide enough for the ball to go through', () {
-      // The ball clears the bar, and the pitch under it.
-      expect(
-        Scene.goalMouth.dy - Scene.ballRadius,
-        greaterThan(Scene.ground - Scene.goalHeight + 3),
-      );
-      expect(Scene.goalMouth.dy + Scene.ballRadius, lessThan(Scene.ground));
-    });
-  });
-
   group('the ball', () {
     const half = 195.0;
     const track = BallTrack(halfWidth: half, halfHeight: 422);
@@ -298,9 +254,15 @@ void main() {
       expect(at.center.dy, lessThan(head.dy - 40));
     });
 
-    test('goes through the goal, in the mouth of it, when it should', () {
-      final at = track.at(SplashTimeline.goal).center;
-      expect((at - Scene.goalMouth).distance, lessThan(1.0));
+    test('is kicked to the right, high over the player, and does not turn', () {
+      var last = track.at(SplashTimeline.strike).center;
+      for (var ms = SplashTimeline.strike + 10; ms < track.exit; ms += 10) {
+        final now = track.at(ms).center;
+        // To the right every moment, and never down to the player or the pitch.
+        expect(now.dx, greaterThan(last.dx), reason: 'ms=$ms');
+        expect(now.dy, lessThan(Scene.ground - 100), reason: 'ms=$ms');
+        last = now;
+      }
     });
 
     test('goes out of the screen on the right, and stays out', () {
@@ -624,7 +586,6 @@ void main() {
       expect(taps, [
         'HapticFeedbackType.lightImpact',
         'HapticFeedbackType.heavyImpact',
-        'HapticFeedbackType.mediumImpact',
         'HapticFeedbackType.mediumImpact',
       ]);
     });

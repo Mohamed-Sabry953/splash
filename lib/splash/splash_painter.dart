@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'ball_track.dart';
-import 'goal.dart';
 import 'l3b_logo.dart';
 import 'logo_data.dart';
 import 'player.dart';
@@ -137,13 +136,6 @@ class _Frame {
     to: math.pi * 0.05,
     speed: 0.9,
   );
-  static final List<_Shard> _goalShards = _Shard.burst(
-    seed: 8,
-    count: 16,
-    from: -math.pi,
-    to: math.pi,
-    speed: 1.2,
-  );
   static final List<_Shard> _homeShards = _Shard.burst(
     seed: 5,
     count: 12,
@@ -153,7 +145,7 @@ class _Frame {
     size: 1.2,
   );
 
-  /// The player has his back to the goal: he faces left.
+  /// The player has his back to where the ball goes: he faces left.
   static const double _facing = -1;
 
   /// Where the ball is at every moment.
@@ -166,7 +158,6 @@ class _Frame {
     final shake = _shake();
     canvas.translate(shake.dx, shake.dy);
 
-    _groundLine();
     _shadows();
     _dust();
     _player();
@@ -199,7 +190,6 @@ class _Frame {
     if (shining || pop < 1) canvas.restore();
     canvas.restore();
 
-    _goal();
     _effects();
   }
 
@@ -426,31 +416,6 @@ class _Frame {
 
   // --- the pitch ----------------------------------------------------------
 
-  void _groundLine() {
-    final grow = seg(
-      ms,
-      SplashTimeline.formStart + 100,
-      SplashTimeline.formStart + 520,
-      Curves.easeOutCubic,
-    );
-    final fade =
-        1 -
-        seg(ms, SplashTimeline.comeBack + 100, SplashTimeline.comeBack + 520);
-    if (grow <= 0 || fade <= 0) return;
-    final reach = layout.halfWidth * grow;
-    _paint
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFFD3DDEC).withValues(alpha: fade);
-    canvas.drawLine(
-      Offset(-reach, Scene.ground + 1),
-      Offset(reach, Scene.ground + 1),
-      _paint,
-    );
-    _paint.style = PaintingStyle.fill;
-  }
-
   void _shadows() {
     final fade =
         1 -
@@ -506,36 +471,6 @@ class _Frame {
       }
     }
     _paint.maskFilter = null;
-  }
-
-  void _goal() {
-    final alpha =
-        seg(
-          ms,
-          SplashTimeline.formStart + 150,
-          SplashTimeline.formStart + 600,
-          Curves.easeOut,
-        ) *
-        (1 -
-            seg(
-              ms,
-              SplashTimeline.unformStart,
-              SplashTimeline.unformStart + 400,
-            ));
-    if (alpha <= 0) return;
-    final slide =
-        24 *
-        (1 -
-            seg(
-              ms,
-              SplashTimeline.formStart + 150,
-              SplashTimeline.formStart + 650,
-              Curves.easeOutCubic,
-            ));
-    canvas.save();
-    canvas.translate(slide, 0);
-    const GoalPainter().paint(canvas, alpha: alpha);
-    canvas.restore();
   }
 
   // --- the shine ----------------------------------------------------------
@@ -614,30 +549,6 @@ class _Frame {
       _shards(_kickShards, SplashTimeline.strike, BallTrack.contact);
     }
 
-    // The goal: rings and a burst where the ball goes through the goal.
-    final inGoal = ms - SplashTimeline.goal;
-    if (inGoal > 0 && inGoal < 900) {
-      for (final (delay, color, alpha, reach) in [
-        (0.0, SplashPainter.green, 0.5, 120.0),
-        (90.0, SplashPainter.blue, 0.38, 90.0),
-      ]) {
-        final e = Curves.easeOutCubic.transform(
-          seg(
-            ms,
-            SplashTimeline.goal + delay,
-            SplashTimeline.goal + delay + 650,
-          ),
-        );
-        if (e <= 0 || e >= 1) continue;
-        _ring(
-          Rect.fromCircle(center: Scene.goalMouth, radius: 10 + reach * e),
-          color.withValues(alpha: alpha * math.pow(1 - e, 1.3).toDouble()),
-          4.5 * (1 - e) + 0.8,
-        );
-      }
-      _shards(_goalShards, SplashTimeline.goal, Scene.goalMouth);
-    }
-
     // Home: a ring on the ground of the logo, and a burst to both sides.
     final home = ms - SplashTimeline.land;
     if (home > 0 && home < 900) {
@@ -711,7 +622,6 @@ class _Frame {
     var dy = 0.0;
     for (final (at, amp) in [
       (SplashTimeline.strike, 2.5),
-      (SplashTimeline.goal, 4.0),
       (SplashTimeline.land, 3.5),
     ]) {
       final d = ms - at;
