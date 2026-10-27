@@ -5,14 +5,16 @@ drawn with a `CustomPainter` from the vector outline of the logo.
 
 ![preview](docs/splash_preview.gif)
 
-## The story (3.9 s)
+## The story (4.35 s)
 
 The logo shows, small and in the middle. The ball is thrown up; the letters turn into
 dust, and the dust into a player, who has his back to where the ball will go. He looks up
 at the ball, jumps, goes over backwards and kicks it over his head (a bicycle kick); the
-ball flies out of the screen on the right. He lands on his back, jumps up and cheers; then
-he turns back into the letters, the ball comes in from the left and lands on the logo, and
-a shine goes over the logo.
+ball flies out of the screen on the right. He lands on his back, gets up, crouches and
+jumps, turning in the air to face us, and lands with his legs wide, his arms down and out,
+his chest out and his head up, shouting "Siuuu" (Ronaldo's celebration). Then he turns
+back into the letters, the ball comes in from the left and lands on the logo, and a shine
+goes over the logo.
 
 | ms | what happens |
 |---|---|
@@ -21,17 +23,19 @@ a shine goes over the logo.
 | 640–1260 | the letters dissolve into dust that flows into a player (skin, hair, kit) |
 | 1260–1560 | he crouches, jumps and starts to go over backwards (the far leg swings up first) |
 | 1650 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
-| 1650–1970 | the ball flies to the right, nearly flat and high over him, and leaves the screen; he falls on his back |
-| 1990–2200 | he jumps up with both arms up |
-| 2260–2940 | he dissolves back into the letters, left to right |
-| 2540–2960 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards |
-| 3040–3620 | a shine goes over the logo |
-| 3900 | `onFinished` is called |
+| 1650–1870 | the ball flies to the right, nearly flat and high over him, and leaves the screen; he falls on his back |
+| 1920–2110 | he gets up and crouches, ready to jump |
+| 2110–2470 | the jump: he turns in the air to face us, his legs open as he comes down |
+| 2470 | "Siuuu": he lands with his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, and rays over his head |
+| 2740–3400 | he dissolves back into the letters, left to right |
+| 2960–3420 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards |
+| 3500–4080 | a shine goes over the logo |
+| 4350 | `onFinished` is called |
 
 All the times are in `lib/splash/splash_timeline.dart`; where things are (the ground
 the player stands on, the size of the logo) in `lib/splash/scene.dart`; where the ball is at every moment in `lib/splash/ball_track.dart`; the poses of the
 player in `lib/splash/player.dart` (`PlayerPoses`: ready, crouch, takeOff, scissors,
-strike, fall, lying, cheer).
+strike, fall, lying, siuAir, siu).
 
 ## Use it in an app
 
@@ -40,7 +44,7 @@ Copy `lib/splash/` into the app and show the splash first:
 ```dart
 L3bSplashScreen(
   onFinished: () => Navigator.of(context).pushReplacement(/* the app */),
-  // haptics: false,   // no taps on the phone when the ball is thrown, at the kick, ...
+  // haptics: false,   // no taps on the phone when the ball is thrown, at the kick, at "Siuuu", ...
   // speed: 1.5,       // 1.5 times faster
 )
 ```

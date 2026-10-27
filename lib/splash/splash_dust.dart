@@ -47,7 +47,7 @@ class SplashDust {
         for (final part in rig.parts)
           DustShape(
             part.path,
-            PlayerRig.colors[part.role]!,
+            rig.colorOf(part.role),
             PlayerRig.isGreen(part.role) ? 0 : 1,
           ),
       ];
@@ -64,7 +64,7 @@ class SplashDust {
         seed: 3,
       ),
       DustMorph.between(
-        from: player(PlayerPoses.cheer),
+        from: player(PlayerPoses.siu),
         to: letters,
         step: step,
         fromIsText: false,

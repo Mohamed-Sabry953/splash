@@ -136,6 +136,14 @@ class _Frame {
     to: math.pi * 0.05,
     speed: 0.9,
   );
+  static final List<_Shard> _siuShards = _Shard.burst(
+    seed: 13,
+    count: 12,
+    from: -math.pi * 0.95,
+    to: -math.pi * 0.05,
+    speed: 0.9,
+    size: 1.1,
+  );
   static final List<_Shard> _homeShards = _Shard.burst(
     seed: 5,
     count: 12,
@@ -370,16 +378,47 @@ class _Frame {
       );
     } else if (time < SplashTimeline.getUp) {
       pose = PlayerPoses.lying;
-    } else {
+    } else if (time < SplashTimeline.siuCrouch) {
+      // Up from the ground into a crouch.
       pose = between(
         PlayerPoses.lying,
-        PlayerPoses.cheer,
+        PlayerPoses.crouch,
         SplashTimeline.getUp,
-        SplashTimeline.cheer,
+        SplashTimeline.siuCrouch,
         Curves.easeInOutCubic,
       );
+    } else if (time < SplashTimeline.siuJump) {
+      pose = PlayerPoses.crouch;
+    } else if (time < SplashTimeline.siuPeak) {
+      // The jump: he starts to turn to face us.
+      pose = between(
+        PlayerPoses.crouch,
+        PlayerPoses.siuAir,
+        SplashTimeline.siuJump,
+        SplashTimeline.siuPeak,
+        Curves.easeOut,
+      );
+    } else if (time < SplashTimeline.siuLand) {
+      // The turn is done as he comes down, with the legs and arms going wide.
+      pose = between(
+        PlayerPoses.siuAir,
+        PlayerPoses.siu,
+        SplashTimeline.siuPeak,
+        SplashTimeline.siuLand,
+        Curves.easeIn,
+      );
+    } else {
+      pose = PlayerPoses.siu;
     }
-    return pose.copyWith(x: Scene.playerX + pose.x);
+    // The jump is an arc: up quickly, a moment at the top, down.
+    var lift = pose.lift;
+    if (time >= SplashTimeline.siuJump && time < SplashTimeline.siuLand) {
+      final u =
+          (time - SplashTimeline.siuJump) /
+          (SplashTimeline.siuLand - SplashTimeline.siuJump);
+      lift = 58 * 4 * u * (1 - u);
+    }
+    return pose.copyWith(lift: lift, x: Scene.playerX + pose.x);
   }
 
   double get _playerAlpha {
@@ -549,6 +588,39 @@ class _Frame {
       _shards(_kickShards, SplashTimeline.strike, BallTrack.contact);
     }
 
+    // "Siuuu": a ring under his feet and a burst when he lands, and rays from
+    // his head while he shouts.
+    final siu = ms - SplashTimeline.siuLand;
+    if (siu > 0 && siu < 900) {
+      final rig = PlayerRig(
+        _poseAt(SplashTimeline.siuLand),
+        ground: Scene.ground,
+        facing: _facing,
+      );
+      final feet = Offset(rig.hip.dx, Scene.ground + 2);
+      for (final (delay, color, alpha) in [
+        (0.0, SplashPainter.blue, 0.34),
+        (90.0, SplashPainter.green, 0.4),
+      ]) {
+        final e = Curves.easeOutCubic.transform(
+          seg(
+            ms,
+            SplashTimeline.siuLand + delay,
+            SplashTimeline.siuLand + delay + 650,
+          ),
+        );
+        if (e <= 0 || e >= 1) continue;
+        final rx = 30 + 90 * e;
+        _ring(
+          Rect.fromCenter(center: feet, width: rx * 2, height: rx * 0.3),
+          color.withValues(alpha: alpha * math.pow(1 - e, 1.3).toDouble()),
+          3 * (1 - e) + 0.7,
+        );
+      }
+      _shards(_siuShards, SplashTimeline.siuLand, feet);
+    }
+    _shoutRays();
+
     // Home: a ring on the ground of the logo, and a burst to both sides.
     final home = ms - SplashTimeline.land;
     if (home > 0 && home < 900) {
@@ -574,6 +646,33 @@ class _Frame {
       }
       _shards(_homeShards, SplashTimeline.land, bottom);
     }
+  }
+
+  /// Short lines round the top of his head while he shouts "Siuuu".
+  void _shoutRays() {
+    final start = SplashTimeline.siuLand - 30;
+    final end = SplashTimeline.unformStart + 60;
+    if (ms < start || ms > end) return;
+    final rig = PlayerRig(_poseAt(ms), ground: Scene.ground, facing: _facing);
+    if (rig.pose.shout < 0.5 || rig.pose.yaw < 1.2) return;
+    // They come in with the shout and go when he stops.
+    final strength =
+        seg(ms, start, SplashTimeline.siuLand + 50, Curves.easeOut) *
+        (1 - seg(ms, SplashTimeline.unformStart - 80, end));
+    final pulse = 0.5 + 0.5 * math.sin(ms * 0.045);
+    _paint
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.6
+      ..color = SplashPainter.green.withValues(alpha: 0.9 * strength);
+    for (var i = -3; i <= 3; i++) {
+      final angle = -math.pi / 2 + i * 0.36;
+      final dir = Offset(math.cos(angle), math.sin(angle));
+      final from = rig.head + dir * (PlayerRig.headRadius + 9 + 3 * pulse);
+      final to = rig.head + dir * (PlayerRig.headRadius + 19 + 9 * pulse);
+      canvas.drawLine(from, to, _paint);
+    }
+    _paint.style = PaintingStyle.fill;
   }
 
   void _ring(Rect rect, Color color, double width) {
@@ -622,6 +721,7 @@ class _Frame {
     var dy = 0.0;
     for (final (at, amp) in [
       (SplashTimeline.strike, 2.5),
+      (SplashTimeline.siuLand, 3.5),
       (SplashTimeline.land, 3.5),
     ]) {
       final d = ms - at;

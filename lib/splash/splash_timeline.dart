@@ -4,10 +4,11 @@ import 'package:flutter/animation.dart';
 ///
 /// The logo shows. The ball is thrown up; the letters turn into dust, and the
 /// dust into a player; the player kicks the ball out of the screen with a
-/// bicycle kick and cheers; then the player turns back into the letters, the
-/// ball comes home from the other side, and a shine goes over the logo.
+/// bicycle kick and celebrates like Ronaldo ("Siuuu"); then the player turns
+/// back into the letters, the ball comes home from the other side, and a shine
+/// goes over the logo.
 abstract final class SplashTimeline {
-  static const double total = 3900;
+  static const double total = 4350;
 
   /// The logo comes in.
   static const double logoIn = 300;
@@ -17,40 +18,45 @@ abstract final class SplashTimeline {
   static const double launch = 500; // ...and is thrown up
   static const double apex = 1240; // as high as it goes
   static const double strike = 1650; // the player's foot meets it
-  static const double comeBack = 2540; // it comes back in from the left
-  static const double land = 2960; // and is home
+  static const double comeBack = 2960; // it comes back in from the left
+  static const double land = 3420; // and is home
 
   // The letters become the player.
   static const double formStart = 640;
   static const double formEnd = 1260;
 
-  // The player's moves: down, up, over backwards, the kick, down on his back
-  // and up again, cheering.
+  // The player's moves: down, up, over backwards, the kick, down on his back,
+  // up again, and the celebration of Ronaldo: a crouch, a jump with a turn in
+  // the air, and a landing facing us with the arms and legs wide.
   static const double crouch = 1360;
   static const double takeOff = 1460;
   static const double scissors = 1560;
   static const double fall = 1760;
   static const double lying = 1870;
-  static const double getUp = 1990;
-  static const double cheer = 2200;
+  static const double getUp = 1920;
+  static const double siuCrouch = 2050;
+  static const double siuJump = 2110;
+  static const double siuPeak = 2290;
+  static const double siuLand = 2470; // "Siuuu"
 
   // The player becomes the letters.
-  static const double unformStart = 2260;
-  static const double unformEnd = 2940;
+  static const double unformStart = 2740;
+  static const double unformEnd = 3400;
 
   // The shine over the logo.
-  static const double shineStart = 3040;
-  static const double shineEnd = 3620;
+  static const double shineStart = 3500;
+  static const double shineEnd = 4080;
 
   /// Things that can be felt: (when, what).
   static const List<(double, SplashBeat)> beats = [
     (launch, SplashBeat.thrown),
     (strike, SplashBeat.kick),
+    (siuLand, SplashBeat.siu),
     (land, SplashBeat.home),
   ];
 }
 
-enum SplashBeat { thrown, kick, home }
+enum SplashBeat { thrown, kick, siu, home }
 
 /// [t] mapped from [a, b] to 0..1 and then through [curve]; 0 before [a] and
 /// 1 after [b].

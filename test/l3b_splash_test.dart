@@ -99,7 +99,7 @@ void main() {
         for (final pose in [
           PlayerPoses.ready,
           PlayerPoses.crouch,
-          PlayerPoses.cheer,
+          PlayerPoses.siu,
         ]) {
           final rig = rigOf(pose);
           expect(
@@ -173,21 +173,26 @@ void main() {
       expect(PlayerRig.isGreen(BodyRole.skin), isFalse);
     });
 
-    test(
-      'is whole in every pose: nothing is missing or in the wrong place',
-      () {
-        for (final pose in [
-          PlayerPoses.ready,
-          PlayerPoses.crouch,
-          PlayerPoses.takeOff,
-          PlayerPoses.scissors,
-          PlayerPoses.strike,
-          PlayerPoses.fall,
-          PlayerPoses.lying,
-          PlayerPoses.cheer,
-        ]) {
-          final rig = rigOf(pose);
-          // The joints are where the lengths of the body say.
+    test('is whole in every pose: nothing is missing or in the wrong place', () {
+      for (final pose in [
+        PlayerPoses.ready,
+        PlayerPoses.crouch,
+        PlayerPoses.takeOff,
+        PlayerPoses.scissors,
+        PlayerPoses.strike,
+        PlayerPoses.fall,
+        PlayerPoses.lying,
+        PlayerPoses.siuAir,
+        PlayerPoses.siu,
+      ]) {
+        final rig = rigOf(pose);
+        for (final part in rig.parts) {
+          final bounds = part.path.getBounds();
+          expect(bounds.isEmpty, isFalse);
+          expect(bounds.width.isFinite && bounds.height.isFinite, isTrue);
+        }
+        // Seen from the side the joints are where the lengths of the body say.
+        if (pose.yaw == 0 && pose.kickSide == 0) {
           expect(
             (rig.kickKnee - rig.hip).distance,
             closeTo(PlayerRig.thigh, 0.01),
@@ -204,12 +209,55 @@ void main() {
             (rig.nearHand - rig.nearElbow).distance,
             closeTo(PlayerRig.foreArm, 0.01),
           );
-          for (final part in rig.parts) {
-            expect(part.path.getBounds().isEmpty, isFalse);
-          }
         }
-      },
-    );
+      }
+    });
+
+    test('"Siuuu": faces us, legs wide, arms down and out, mouth open', () {
+      final rig = rigOf(PlayerPoses.siu);
+      // Both feet are on the ground, on both sides of the hip, as far from it.
+      expect(rig.kickAnkle.dy, closeTo(rig.plantAnkle.dy, 0.01));
+      expect(
+        (rig.kickAnkle.dx - rig.hip.dx) * (rig.plantAnkle.dx - rig.hip.dx),
+        lessThan(0),
+      );
+      expect(
+        (rig.kickAnkle.dx - rig.hip.dx).abs(),
+        closeTo((rig.plantAnkle.dx - rig.hip.dx).abs(), 0.01),
+      );
+      expect((rig.kickAnkle.dx - rig.plantAnkle.dx).abs(), greaterThan(55));
+      // The arms are out on both sides, lower than the shoulders.
+      expect(
+        (rig.nearHand.dx - rig.hip.dx) * (rig.farHand.dx - rig.hip.dx),
+        lessThan(0),
+      );
+      expect((rig.nearHand.dx - rig.farHand.dx).abs(), greaterThan(70));
+      expect(rig.nearHand.dy, greaterThan(rig.shoulder.dy + 20));
+      expect(rig.farHand.dy, greaterThan(rig.shoulder.dy + 20));
+      // The head is over the middle of the body, and the mouth is on it.
+      expect((rig.head.dx - rig.hip.dx).abs(), lessThan(8));
+      expect((rig.mouth - rig.head).distance, lessThan(PlayerRig.headRadius));
+      expect(rig.mouth.dy, greaterThan(rig.head.dy - 4));
+      // He is a body seen from the front, not a line.
+      final silhouette = rig.parts
+          .map((p) => p.path.getBounds())
+          .reduce((a, b) => a.expandToInclude(b));
+      expect(silhouette.width, greaterThan(80));
+    });
+
+    test('turns from the side to the front: wider and wider', () {
+      var last = -1.0;
+      for (final yaw in [0.0, 0.4, 0.8, 1.2, 1.5707963267948966]) {
+        final rig = PlayerRig(
+          PlayerPoses.siu.withYaw(yaw),
+          ground: Scene.ground,
+          facing: -1,
+        );
+        final width = (rig.nearHand.dx - rig.farHand.dx).abs();
+        expect(width, greaterThan(last - 0.001), reason: 'yaw=$yaw');
+        last = width;
+      }
+    });
 
     test('the ball is where the foot meets it: above the toe', () {
       final strike = rigOf(PlayerPoses.strike);
@@ -494,7 +542,7 @@ void main() {
         _app(L3bSplashScreen(haptics: false, onFinished: () => done++)),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 3800));
+      await tester.pump(const Duration(milliseconds: 4250));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -510,7 +558,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1850));
+      await tester.pump(const Duration(milliseconds: 2075));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -580,11 +628,12 @@ void main() {
 
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4000; ms += 50) {
+      for (var ms = 0; ms < 4400; ms += 50) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(taps, [
         'HapticFeedbackType.lightImpact',
+        'HapticFeedbackType.heavyImpact',
         'HapticFeedbackType.heavyImpact',
         'HapticFeedbackType.mediumImpact',
       ]);
@@ -596,7 +645,7 @@ void main() {
       // Nothing answers the call: it is what a phone without a motor does.
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4000; ms += 100) {
+      for (var ms = 0; ms < 4400; ms += 100) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(tester.takeException(), isNull);

@@ -15,14 +15,12 @@ void main() {
     final poses = {
       'ready': PlayerPoses.ready,
       'crouch': PlayerPoses.crouch,
-      'takeOff': PlayerPoses.takeOff,
-      'scissors': PlayerPoses.scissors,
       'strike': PlayerPoses.strike,
-      'fall': PlayerPoses.fall,
       'lying': PlayerPoses.lying,
-      'cheer': PlayerPoses.cheer,
+      'siuAir': PlayerPoses.siuAir,
+      'siu': PlayerPoses.siu,
     };
-    const columns = 4;
+    const columns = 3;
     const cellWidth = 230.0;
     const cellHeight = 250.0;
     final rows = (poses.length + columns - 1) ~/ columns;

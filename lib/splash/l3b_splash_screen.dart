@@ -101,6 +101,7 @@ class _L3bSplashScreenState extends State<L3bSplashScreen>
       final tap = switch (beat) {
         SplashBeat.thrown => HapticFeedback.lightImpact(),
         SplashBeat.kick => HapticFeedback.heavyImpact(),
+        SplashBeat.siu => HapticFeedback.heavyImpact(),
         SplashBeat.home => HapticFeedback.mediumImpact(),
       };
       // Not every phone can vibrate: it is not worth an error.
