@@ -17,8 +17,8 @@ abstract final class SplashTimeline {
   static const double launch = 500; // ...and is thrown up
   static const double apex = 1240; // as high as it goes
   static const double strike = 1650; // the player's foot meets it
-  static const double goal = 1930; // it reaches the net
-  static const double comeBack = 2340; // it leaves the net, for the logo
+  static const double goal = 1850; // it goes through the goal
+  static const double comeBack = 2540; // it comes back in from the left
   static const double land = 2960; // and is home
 
   // The letters become the player.

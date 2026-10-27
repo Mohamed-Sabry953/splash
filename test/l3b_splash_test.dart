@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:l3b_splash/splash/ball_track.dart';
 import 'package:l3b_splash/splash/goal.dart';
 import 'package:l3b_splash/splash/l3b_logo.dart';
 import 'package:l3b_splash/splash/l3b_splash_screen.dart';
@@ -225,20 +226,149 @@ void main() {
   });
 
   group('the goal', () {
-    test('is still until the ball hits the net, then shakes and settles', () {
-      const hit = Scene.netHit;
-      final inside = hit - const Offset(10, 0);
-      expect(GoalPainter.push(inside, hit, -10), 0);
-      expect(GoalPainter.push(inside, hit, 40).abs(), greaterThan(1));
-      expect(GoalPainter.push(inside, hit, 1800).abs(), lessThan(0.05));
-      // The front post does not move; the back of the net moves most.
-      expect(GoalPainter.push(Offset(Scene.goalFront, hit.dy), hit, 40), 0);
-      expect(
-        GoalPainter.push(inside, hit, 40).abs(),
-        greaterThan(
-          GoalPainter.push(Offset(Scene.goalFront + 20, hit.dy), hit, 40).abs(),
-        ),
+    test('has no net: a post, a bar and a post, and nothing between', () async {
+      final pixels = await _pixels(
+        await _draw((c, s) {
+          c.translate(s.width / 2, s.height / 2);
+          const GoalPainter().paint(c);
+        }),
       );
+      const width = 390;
+      int at(double x, double y) {
+        final px = (195 + x).round();
+        final py = (422 + y).round();
+        return pixels[(py * width + px) * 4];
+      }
+
+      // The post in front, and the bar, are there...
+      expect(at(Scene.goalFront, Scene.ground - 40), lessThan(100));
+      expect(
+        at(Scene.goalFront + 30, Scene.ground - Scene.goalHeight),
+        lessThan(100),
+      );
+      // ...and the inside of the goal is empty: no lines of a net.
+      for (
+        var y = Scene.ground - Scene.goalHeight + 8;
+        y < Scene.ground - 6;
+        y += 3
+      ) {
+        for (var x = Scene.goalFront + 8; x < Scene.goalBack - 6; x += 3) {
+          expect(at(x, y), 255, reason: 'x=$x y=$y');
+        }
+      }
+    });
+
+    test('is wide enough for the ball to go through', () {
+      // The ball clears the bar, and the pitch under it.
+      expect(
+        Scene.goalMouth.dy - Scene.ballRadius,
+        greaterThan(Scene.ground - Scene.goalHeight + 3),
+      );
+      expect(Scene.goalMouth.dy + Scene.ballRadius, lessThan(Scene.ground));
+    });
+  });
+
+  group('the ball', () {
+    const half = 195.0;
+    const track = BallTrack(halfWidth: half, halfHeight: 422);
+
+    test('is thrown up to near the top of the screen, without leaving it', () {
+      var last = track.at(SplashTimeline.launch).center.dy;
+      for (
+        var ms = SplashTimeline.launch + 20;
+        ms <= SplashTimeline.apex;
+        ms += 20
+      ) {
+        final y = track.at(ms).center.dy;
+        expect(y, lessThanOrEqualTo(last + 0.001), reason: 'rising at $ms');
+        last = y;
+      }
+      final top = track.at(SplashTimeline.apex);
+      expect(top.center.dy - top.radius, greaterThan(-422));
+      expect(top.center.dy, lessThan(-200));
+      // It gets smaller as it goes, and it is whole.
+      expect(top.radius, Scene.ballRadius);
+      expect(top.fill, 1);
+    });
+
+    test('falls on the foot at the kick, over the head of the player', () {
+      final at = track.at(SplashTimeline.strike);
+      expect((at.center - BallTrack.contact).distance, lessThan(0.5));
+      final head = BallTrack.strikeRig.head;
+      expect(at.center.dy, lessThan(head.dy - 40));
+    });
+
+    test('goes through the goal, in the mouth of it, when it should', () {
+      final at = track.at(SplashTimeline.goal).center;
+      expect((at - Scene.goalMouth).distance, lessThan(1.0));
+    });
+
+    test('goes out of the screen on the right, and stays out', () {
+      for (final width in [160.0, 195.0, 260.0, 341.0, 400.0]) {
+        final t = BallTrack(halfWidth: width, halfHeight: 400);
+        expect(t.exit, lessThan(SplashTimeline.comeBack));
+        // It is still in the screen before, and gone after.
+        final before = t.at(SplashTimeline.strike + 60);
+        expect(before.center.dx - before.radius, lessThan(width));
+        for (var ms = t.exit; ms < SplashTimeline.comeBack; ms += 25) {
+          final s = t.at(ms);
+          expect(
+            s.center.dx - s.radius,
+            greaterThan(width),
+            reason: 'w=$width ms=$ms',
+          );
+        }
+      }
+    });
+
+    test('comes back in from the left, and falls on the logo', () {
+      final start = track.at(SplashTimeline.comeBack);
+      expect(start.center.dx + start.radius, lessThan(-half));
+
+      // It moves to the right all the way, and appears at the left edge.
+      var last = start.center.dx;
+      var entered = false;
+      for (
+        var ms = SplashTimeline.comeBack;
+        ms <= SplashTimeline.land;
+        ms += 10
+      ) {
+        final s = track.at(ms);
+        expect(
+          s.center.dx,
+          greaterThanOrEqualTo(last - 0.001),
+          reason: 'ms=$ms',
+        );
+        last = s.center.dx;
+        if (!entered && s.center.dx + s.radius > -half) {
+          entered = true;
+          expect(s.center.dx, lessThan(-half + 3 * s.radius));
+        }
+      }
+      expect(entered, isTrue);
+
+      // And it is the ball of the logo, as the logo has it.
+      final home = track.at(SplashTimeline.land + 400);
+      expect((home.center - Scene.logoBall).distance, lessThan(0.01));
+      expect(home.radius, Scene.logoBallRadius);
+      expect(home.spin % (2 * 3.141592653589793), closeTo(0, 0.001));
+      expect(home.fill, 0);
+    });
+
+    test('is never in two places: no jumps from one moment to the next', () {
+      var last = track.at(0).center;
+      for (var ms = 5.0; ms <= SplashTimeline.total; ms += 5) {
+        final now = track.at(ms).center;
+        final jump = (now - last).distance;
+        // Going off the right and coming in from the left is the one thing
+        // that is allowed to jump: it happens out of sight.
+        if (ms > track.exit && ms <= SplashTimeline.comeBack + 5) {
+          last = now;
+          continue;
+        }
+        expect(jump, lessThan(60), reason: 'jump of $jump at $ms ms');
+        last = now;
+      }
     });
   });
 

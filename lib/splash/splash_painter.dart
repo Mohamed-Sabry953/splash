@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'ball_track.dart';
 import 'goal.dart';
 import 'l3b_logo.dart';
 import 'logo_data.dart';
@@ -60,30 +61,6 @@ class SplashPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(SplashPainter oldDelegate) => oldDelegate.ms != ms;
-}
-
-/// Where the ball is, and how it looks.
-class _Ball {
-  const _Ball({
-    required this.center,
-    required this.radius,
-    this.spin = 0,
-    this.sx = 1,
-    this.sy = 1,
-    this.fill = 1,
-  });
-
-  final Offset center;
-  final double radius;
-  final double spin;
-
-  /// Squashed or stretched, along the axes of the screen.
-  final double sx;
-  final double sy;
-
-  /// How much the piece of the ball that the 5 covers shows: it shows while
-  /// the ball is on its own.
-  final double fill;
 }
 
 /// A little pentagon, like a patch of the ball, thrown out by an impact.
@@ -153,8 +130,6 @@ class _Frame {
 
   final Paint _paint = Paint();
 
-  static const double _gravity = 2400; // units per second, squared
-
   static final List<_Shard> _kickShards = _Shard.burst(
     seed: 21,
     count: 9,
@@ -181,23 +156,11 @@ class _Frame {
   /// The player has his back to the goal: he faces left.
   static const double _facing = -1;
 
-  static PlayerRig _rig(PlayerPose pose) => PlayerRig(
-    pose.copyWith(x: Scene.playerX + pose.x),
-    ground: Scene.ground,
-    facing: _facing,
+  /// Where the ball is at every moment.
+  late final BallTrack track = BallTrack(
+    halfWidth: layout.halfWidth,
+    halfHeight: layout.halfHeight,
   );
-
-  /// The player at the moment of the kick, and where the ball is then: just
-  /// above the toe of the foot that kicks it over his head, to the side of
-  /// the goal.
-  static final PlayerRig _strikeRig = _rig(PlayerPoses.strike);
-  static final Offset _contact =
-      _strikeRig.kickToe +
-      const Offset(Scene.ballRadius * 0.55, -Scene.ballRadius * 0.85);
-
-  /// How high the ball goes: near the top of the screen.
-  Offset get _apex =>
-      Offset(_contact.dx - 16, -math.min(262.0, layout.halfHeight - 90));
 
   void paint() {
     final shake = _shake();
@@ -242,162 +205,16 @@ class _Frame {
 
   // --- the ball -----------------------------------------------------------
 
-  _Ball _ballAt(double time) {
-    final rest = Scene.logoBall;
-    const rLogo = Scene.logoBallRadius;
-    const rGame = Scene.ballRadius;
-    final apex = _apex;
-
-    if (time < SplashTimeline.launch) {
-      // It crouches before it is thrown.
-      final c = seg(
-        time,
-        SplashTimeline.squash,
-        SplashTimeline.launch,
-        Curves.easeIn,
-      );
-      final sy = 1 - 0.16 * c;
-      return _Ball(
-        center: rest + Offset(0, rLogo * (1 - sy)),
-        radius: rLogo,
-        sx: 1 + 0.12 * c,
-        sy: sy,
-        fill: 0,
-      );
-    }
-    if (time < SplashTimeline.apex) {
-      final u =
-          (time - SplashTimeline.launch) /
-          (SplashTimeline.apex - SplashTimeline.launch);
-      final up = 1 - (1 - u) * (1 - u);
-      final across = Curves.easeInOut.transform(u);
-      final stretch = 1 + 0.2 * math.pow(1 - u, 2);
-      return _Ball(
-        center: Offset(
-          lerpDouble(rest.dx, apex.dx, across)!,
-          lerpDouble(rest.dy, apex.dy, up)!,
-        ),
-        radius: lerpDouble(rLogo, rGame, Curves.easeOutCubic.transform(u))!,
-        spin: math.pi * 6 * Curves.easeOut.transform(u),
-        sx: 1 / math.sqrt(stretch),
-        sy: stretch,
-        fill: seg(
-          time,
-          SplashTimeline.launch,
-          SplashTimeline.launch + 70,
-          Curves.easeOut,
-        ),
-      );
-    }
-    const turns = math.pi * 6;
-    if (time < SplashTimeline.strike) {
-      // It falls on the foot of the player.
-      final u =
-          (time - SplashTimeline.apex) /
-          (SplashTimeline.strike - SplashTimeline.apex);
-      return _Ball(
-        center: Offset(
-          lerpDouble(apex.dx, _contact.dx, Curves.easeInOut.transform(u))!,
-          lerpDouble(apex.dy, _contact.dy, u * u)!,
-        ),
-        radius: rGame,
-        spin: turns + 3.2 * (time - SplashTimeline.apex) / 1000,
-      );
-    }
-    final spinAtKick =
-        turns + 3.2 * (SplashTimeline.strike - SplashTimeline.apex) / 1000;
-    if (time < SplashTimeline.goal) {
-      // The shot.
-      final u =
-          (time - SplashTimeline.strike) /
-          (SplashTimeline.goal - SplashTimeline.strike);
-      final e = 1 - math.pow(1 - u, 1.5).toDouble();
-      final control = Offset(_contact.dx + 100, _contact.dy - 50);
-      return _Ball(
-        center: _bezier(_contact, control, Scene.netHit, e),
-        radius: rGame,
-        spin: spinAtKick + 24 * (time - SplashTimeline.strike) / 1000,
-      );
-    }
-    final spinInNet =
-        spinAtKick + 24 * (SplashTimeline.goal - SplashTimeline.strike) / 1000;
-    if (time < SplashTimeline.comeBack) {
-      return _ballInNet(time, spinInNet);
-    }
-    if (time < SplashTimeline.land) {
-      // Back home, growing as it comes near.
-      final from = _ballInNet(SplashTimeline.comeBack, spinInNet);
-      final u =
-          (time - SplashTimeline.comeBack) /
-          (SplashTimeline.land - SplashTimeline.comeBack);
-      final e = Curves.easeInOut.transform(u);
-      final control = Offset(20, rest.dy - 190);
-      final spinTo =
-          (from.spin / (math.pi * 2)).floor() * math.pi * 2 - math.pi * 4;
-      return _Ball(
-        center: _bezier(from.center, control, rest, e),
-        radius: lerpDouble(rGame, rLogo, Curves.easeIn.transform(u))!,
-        spin: lerpDouble(from.spin, spinTo, e)!,
-      );
-    }
-    // At home: it squashes a little as it settles.
-    final d = time - SplashTimeline.land;
-    final squash = 0.17 * math.exp(-math.pow(d / 70, 2));
-    final sy = 1 - squash;
-    return _Ball(
-      center: rest + Offset(0, rLogo * (1 - sy)),
-      radius: rLogo,
-      sx: 1 + 0.8 * squash,
-      sy: sy,
-      fill: 1 - seg(time, SplashTimeline.land + 10, SplashTimeline.land + 40),
-    );
-  }
-
-  /// The ball in the net: pushed back, then it falls and bounces on the
-  /// ground inside the goal.
-  _Ball _ballInNet(double time, double spinAtGoal) {
-    final tau = (time - SplashTimeline.goal) / 1000;
-    const floor = Scene.ground - Scene.ballRadius - 1;
-    final x = Scene.netHit.dx - 9 * (1 - math.exp(-tau * 14));
-    final y = _fallOnto(floor, Scene.netHit.dy, -40, tau);
-    return _Ball(
-      center: Offset(x, y),
-      radius: Scene.ballRadius,
-      spin: spinAtGoal - 8 * (1 - math.exp(-tau * 5)),
-    );
-  }
-
-  /// Height of something thrown at [vy] (negative is up) from [y0] after [t]
-  /// seconds, that loses most of its speed each time it hits [floor].
-  double _fallOnto(double floor, double y0, double vy, double t) {
-    var y = y0;
-    var v = vy;
-    for (var i = 0; i < 5; i++) {
-      final reach =
-          (-v + math.sqrt(v * v + 2 * _gravity * (floor - y))) / _gravity;
-      if (t <= reach) return y + v * t + 0.5 * _gravity * t * t;
-      v = -(v + _gravity * reach) * 0.34;
-      y = floor;
-      t -= reach;
-    }
-    return floor;
-  }
-
-  static Offset _bezier(Offset a, Offset c, Offset b, double t) {
-    final u = 1 - t;
-    return a * (u * u) + c * (2 * u * t) + b * (t * t);
-  }
-
   void _ball() {
-    final ball = _ballAt(ms);
-    final fast = (ball.center - _ballAt(ms - 34).center).distance;
+    final ball = track.at(ms);
+    final fast = (ball.center - track.at(ms - 34).center).distance;
     final trail = ((fast - 5) / 28).clamp(0.0, 1.0);
     if (trail > 0 && ms > SplashTimeline.launch) {
       const alphas = [0.20, 0.12, 0.06];
       for (var i = alphas.length; i >= 1; i--) {
         final time = ms - 34.0 * i;
         if (time < SplashTimeline.launch) continue;
-        _drawBall(_ballAt(time), alphas[i - 1] * trail);
+        _drawBall(track.at(time), alphas[i - 1] * trail);
       }
     }
     _drawStreak();
@@ -406,14 +223,14 @@ class _Frame {
 
   /// The shot leaves a green line behind it, like the stroke of the 5.
   void _drawStreak() {
-    if (ms < SplashTimeline.strike || ms > SplashTimeline.goal + 80) return;
+    if (ms < SplashTimeline.strike || ms > track.exit) return;
     const pieces = 8;
-    final fade = 1 - seg(ms, SplashTimeline.goal, SplashTimeline.goal + 80);
+    final fade = 1 - seg(ms, track.exit - 40, track.exit);
     for (var i = 0; i < pieces; i++) {
-      final a = _ballAt(math.max(ms - i * 9, SplashTimeline.strike)).center;
-      final b = _ballAt(
-        math.max(ms - (i + 1) * 9, SplashTimeline.strike),
-      ).center;
+      final a = track.at(math.max(ms - i * 9, SplashTimeline.strike)).center;
+      final b = track
+          .at(math.max(ms - (i + 1) * 9, SplashTimeline.strike))
+          .center;
       final k = 1 - i / pieces;
       _paint
         ..style = PaintingStyle.stroke
@@ -425,7 +242,7 @@ class _Frame {
     _paint.style = PaintingStyle.fill;
   }
 
-  void _drawBall(_Ball ball, double alpha, {bool solid = false}) {
+  void _drawBall(BallState ball, double alpha, {bool solid = false}) {
     canvas.save();
     canvas.translate(ball.center.dx, ball.center.dy);
     canvas.scale(ball.sx, ball.sy);
@@ -669,7 +486,7 @@ class _Frame {
     // The ball's: small and faint when the ball is high.
     if (ms > SplashTimeline.launch + 100 &&
         ms < SplashTimeline.comeBack + 520) {
-      final ball = _ballAt(ms);
+      final ball = track.at(ms);
       final high = (Scene.ground - ball.center.dy).clamp(0.0, 400.0) / 400;
       final alpha =
           0.16 *
@@ -702,8 +519,8 @@ class _Frame {
         (1 -
             seg(
               ms,
-              SplashTimeline.comeBack + 20,
-              SplashTimeline.comeBack + 450,
+              SplashTimeline.unformStart,
+              SplashTimeline.unformStart + 400,
             ));
     if (alpha <= 0) return;
     final slide =
@@ -717,7 +534,7 @@ class _Frame {
             ));
     canvas.save();
     canvas.translate(slide, 0);
-    GoalPainter().paint(canvas, ms: ms - SplashTimeline.goal, alpha: alpha);
+    const GoalPainter().paint(canvas, alpha: alpha);
     canvas.restore();
   }
 
@@ -770,7 +587,7 @@ class _Frame {
         seg(ms, SplashTimeline.strike, SplashTimeline.strike + 420),
       );
       _ring(
-        Rect.fromCircle(center: _contact, radius: 8 + 52 * e),
+        Rect.fromCircle(center: BallTrack.contact, radius: 8 + 52 * e),
         SplashPainter.green.withValues(alpha: 0.55 * (1 - e)),
         4 * (1 - e) + 0.8,
       );
@@ -787,19 +604,19 @@ class _Frame {
           final a = -math.pi * 0.62 + i * math.pi * 0.2;
           final dir = Offset(math.cos(a), math.sin(a));
           canvas.drawLine(
-            _contact + dir * (14 + 12 * lines),
-            _contact + dir * (26 + 30 * lines),
+            BallTrack.contact + dir * (14 + 12 * lines),
+            BallTrack.contact + dir * (26 + 30 * lines),
             _paint,
           );
         }
         _paint.style = PaintingStyle.fill;
       }
-      _shards(_kickShards, SplashTimeline.strike, _contact);
+      _shards(_kickShards, SplashTimeline.strike, BallTrack.contact);
     }
 
-    // The goal: rings in the net, and a burst.
-    final inNet = ms - SplashTimeline.goal;
-    if (inNet > 0 && inNet < 900) {
+    // The goal: rings and a burst where the ball goes through the goal.
+    final inGoal = ms - SplashTimeline.goal;
+    if (inGoal > 0 && inGoal < 900) {
       for (final (delay, color, alpha, reach) in [
         (0.0, SplashPainter.green, 0.5, 120.0),
         (90.0, SplashPainter.blue, 0.38, 90.0),
@@ -813,12 +630,12 @@ class _Frame {
         );
         if (e <= 0 || e >= 1) continue;
         _ring(
-          Rect.fromCircle(center: Scene.netHit, radius: 10 + reach * e),
+          Rect.fromCircle(center: Scene.goalMouth, radius: 10 + reach * e),
           color.withValues(alpha: alpha * math.pow(1 - e, 1.3).toDouble()),
           4.5 * (1 - e) + 0.8,
         );
       }
-      _shards(_goalShards, SplashTimeline.goal, Scene.netHit);
+      _shards(_goalShards, SplashTimeline.goal, Scene.goalMouth);
     }
 
     // Home: a ring on the ground of the logo, and a burst to both sides.

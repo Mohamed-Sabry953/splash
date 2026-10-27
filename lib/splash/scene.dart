@@ -36,6 +36,6 @@ abstract final class Scene {
   static const double goalLean = 12;
   static const double goalHeight = 92;
 
-  /// Where the shot ends: the net at the back of the goal.
-  static const Offset netHit = Offset(goalBack - 4, ground - 66);
+  /// Where the ball goes through the front of the goal.
+  static const Offset goalMouth = Offset(goalFront + 6, ground - 66);
 }
