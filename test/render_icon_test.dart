@@ -86,13 +86,13 @@ void main() {
     await render(
       'app_icon_full.png',
       white: true,
-      fraction: 0.78,
+      fraction: 0.68,
       byWidth: true,
     );
     await render(
       'app_icon_foreground.png',
       white: false,
-      fraction: 0.77,
+      fraction: 0.68,
       byWidth: false,
     );
   }, skip: dir == null);
