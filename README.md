@@ -68,12 +68,11 @@ curve. The way back is the same with the player of the end of the story.
 
 ## The app icon
 
-The icon of the app is the mark of the logo (the navy ball and the green 5) on white,
-like the splash. It is drawn from the vector logo, then cut to every size:
+The icon of the app (the ball and the green 5, on a navy rounded square) is made from
+`tool/app_icon_source.jpg`:
 
 ```sh
-L3B_ICON_DIR=tool flutter test test/render_icon_test.dart   # tool/app_icon_*.png
-pip install pillow
+pip install numpy pillow
 python tool/make_icons.py      # iOS (all the sizes), Android (adaptive and plain)
 ```
 
