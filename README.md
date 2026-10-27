@@ -23,13 +23,13 @@ goes over the logo.
 | 640–1260 | the letters dissolve into dust that flows into a player (skin, hair, kit) |
 | 1260–1560 | he crouches, jumps and starts to go over backwards (the far leg swings up first) |
 | 1650 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
-| 1650–1870 | the ball flies to the right, nearly flat and high over him, and leaves the screen; he falls on his back |
+| 1650–1870 | the ball flies to the right, stretched along the shot at first, nearly flat and high over him, and leaves the screen; he falls on his back |
 | 1920–2110 | he gets up and crouches, ready to jump |
 | 2110–2470 | the jump: he turns in the air to face us and moves to the middle of the screen, his legs open as he comes down |
 | 2470–2640 | "Siuuu": he lands in the middle of the screen with his knees bent and straightens up, his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, rays over his head, a soft green light behind him, a burst of paper from behind his shoulders, and the camera pushes in (and in slowly while he shouts) |
 | 2740–3400 | he dissolves back into the letters, left to right |
 | 2960–3420 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards, a small bounce of the logo, and the 5 is pressed into the ball at that moment |
-| 3500–4080 | a shine goes over the logo |
+| 3500–4080 | a shine goes over the logo, and little stars of light flash on it as it passes |
 | 4350 | `onFinished` is called |
 
 All the times are in `lib/splash/splash_timeline.dart`; where things are (the ground

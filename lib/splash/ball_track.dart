@@ -155,10 +155,14 @@ class BallTrack {
         turns + 3.2 * (SplashTimeline.strike - SplashTimeline.apex) / 1000;
     if (ms < exit) {
       final tau = (ms - SplashTimeline.strike) / 1000;
+      // Just after the kick it is stretched along the shot, then it is round.
+      final stretch = 1 + 0.32 * math.exp(-tau * 1000 / 85);
       return BallState(
         center: shotAt(tau),
         radius: rGame,
         spin: spinAtKick + 24 * tau,
+        sx: stretch,
+        sy: 1 / stretch,
       );
     }
     if (ms < SplashTimeline.comeBack) {

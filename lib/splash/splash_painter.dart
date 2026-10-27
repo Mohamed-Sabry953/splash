@@ -267,6 +267,7 @@ class _Frame {
     if (textOnTop) _letters();
     if (shining) _shine();
     if (shining || pop < 1) canvas.restore();
+    _sparkles();
     canvas.restore();
 
     _effects();
@@ -646,6 +647,71 @@ class _Frame {
     _paint
       ..shader = null
       ..blendMode = BlendMode.srcOver;
+    canvas.restore();
+  }
+
+  /// Little stars of light on the logo, each one flashing as the band of light
+  /// goes over it.
+  void _sparkles() {
+    if (ms < SplashTimeline.shineStart - 60 || ms > SplashTimeline.total) {
+      return;
+    }
+    // Where, in the units of the logo, and how big.
+    const stars = [
+      (Offset(92, 74), 1.0),
+      (Offset(352, 122), 0.8),
+      (Offset(742, 168), 0.9),
+      (Offset(878, 108), 0.7),
+      (Offset(1024, 268), 1.0),
+    ];
+    const width = 170.0;
+    const lean = 110.0;
+    const from = -width - lean;
+    const to = kLogoWidth + 40;
+    canvas.save();
+    canvas.scale(Scene.logoScale);
+    canvas.translate(-kLogoWidth / 2, -kLogoHeight / 2);
+    for (final (at, size) in stars) {
+      // When the middle of the band is over the star: the band moves along an
+      // ease, so ask the ease where it is.
+      final target = ((at.dx - (lean + width) / 2 - from) / (to - from)).clamp(
+        0.0,
+        1.0,
+      );
+      var lo = 0.0;
+      var hi = 1.0;
+      for (var i = 0; i < 18; i++) {
+        final mid = (lo + hi) / 2;
+        if (Curves.easeInOutCubic.transform(mid) < target) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      final when =
+          SplashTimeline.shineStart +
+          lo * (SplashTimeline.shineEnd - SplashTimeline.shineStart);
+      final k = seg(ms, when - 60, when + 200);
+      if (k <= 0 || k >= 1) continue;
+      final flash = math.pow(math.sin(math.pi * k), 1.4).toDouble();
+      final radius = 64 * size * flash;
+      final path = Path();
+      for (var i = 0; i < 8; i++) {
+        final a = -math.pi / 2 + i * math.pi / 4 + 0.3 * (k - 0.5);
+        final r = i.isEven ? radius : radius * 0.2;
+        final p = at + Offset(math.cos(a) * r, math.sin(a) * r);
+        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+      }
+      path.close();
+      _paint
+        ..style = PaintingStyle.fill
+        ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.9 * flash);
+      canvas.drawCircle(at, radius * 0.38, _paint);
+      canvas.drawPath(
+        path,
+        _paint..color = Colors.white.withValues(alpha: flash),
+      );
+    }
     canvas.restore();
   }
 
