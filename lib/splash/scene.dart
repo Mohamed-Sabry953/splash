@@ -23,7 +23,7 @@ abstract final class Scene {
   static const double logoBallRadius = kBallRadius * logoScale;
 
   /// The pitch: the height of the ground, and where the player stands.
-  static const double ground = 96;
+  static const double ground = 70;
   static const double playerX = -50;
 
   /// The ball in the game is smaller than the one in the logo.

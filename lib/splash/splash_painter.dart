@@ -402,10 +402,19 @@ class _Frame {
       // The turn is done as he comes down, with the legs and arms going wide.
       pose = between(
         PlayerPoses.siuAir,
-        PlayerPoses.siu,
+        PlayerPoses.siuLand,
         SplashTimeline.siuPeak,
         SplashTimeline.siuLand,
         Curves.easeIn,
+      );
+    } else if (time < SplashTimeline.siuSettle) {
+      // The landing takes the knees down, and he stands up straight.
+      pose = between(
+        PlayerPoses.siuLand,
+        PlayerPoses.siu,
+        SplashTimeline.siuLand,
+        SplashTimeline.siuSettle,
+        Curves.easeOutCubic,
       );
     } else {
       pose = PlayerPoses.siu;

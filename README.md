@@ -25,8 +25,8 @@ goes over the logo.
 | 1650 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
 | 1650–1870 | the ball flies to the right, nearly flat and high over him, and leaves the screen; he falls on his back |
 | 1920–2110 | he gets up and crouches, ready to jump |
-| 2110–2470 | the jump: he turns in the air to face us, his legs open as he comes down |
-| 2470 | "Siuuu": he lands with his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, and rays over his head |
+| 2110–2470 | the jump: he turns in the air to face us and moves to the middle of the screen, his legs open as he comes down |
+| 2470–2640 | "Siuuu": he lands in the middle of the screen with his knees bent and straightens up, his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, and rays over his head |
 | 2740–3400 | he dissolves back into the letters, left to right |
 | 2960–3420 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards |
 | 3500–4080 | a shine goes over the logo |
@@ -35,7 +35,7 @@ goes over the logo.
 All the times are in `lib/splash/splash_timeline.dart`; where things are (the ground
 the player stands on, the size of the logo) in `lib/splash/scene.dart`; where the ball is at every moment in `lib/splash/ball_track.dart`; the poses of the
 player in `lib/splash/player.dart` (`PlayerPoses`: ready, crouch, takeOff, scissors,
-strike, fall, lying, siuAir, siu).
+strike, fall, lying, siuAir, siuLand, siu).
 
 ## Use it in an app
 

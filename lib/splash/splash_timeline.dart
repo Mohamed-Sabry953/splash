@@ -38,6 +38,7 @@ abstract final class SplashTimeline {
   static const double siuJump = 2110;
   static const double siuPeak = 2290;
   static const double siuLand = 2470; // "Siuuu"
+  static const double siuSettle = 2640; // the knees are straight again
 
   // The player becomes the letters.
   static const double unformStart = 2740;

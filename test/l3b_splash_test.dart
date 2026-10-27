@@ -99,6 +99,7 @@ void main() {
         for (final pose in [
           PlayerPoses.ready,
           PlayerPoses.crouch,
+          PlayerPoses.siuLand,
           PlayerPoses.siu,
         ]) {
           final rig = rigOf(pose);
@@ -183,6 +184,7 @@ void main() {
         PlayerPoses.fall,
         PlayerPoses.lying,
         PlayerPoses.siuAir,
+        PlayerPoses.siuLand,
         PlayerPoses.siu,
       ]) {
         final rig = rigOf(pose);
@@ -244,6 +246,20 @@ void main() {
           .reduce((a, b) => a.expandToInclude(b));
       expect(silhouette.width, greaterThan(80));
     });
+
+    test(
+      '"Siuuu" is in the middle of the screen; he lands with bent knees',
+      () {
+        final land = rigOf(PlayerPoses.siuLand);
+        final stand = rigOf(PlayerPoses.siu);
+        expect(stand.hip.dx, closeTo(0, 0.01));
+        expect(land.hip.dx, closeTo(0, 0.01));
+        // The knees take the landing: the hip is lower, and he is no taller
+        // than when he stands.
+        expect(land.hip.dy, greaterThan(stand.hip.dy + 2));
+        expect(land.head.dy, greaterThan(stand.head.dy));
+      },
+    );
 
     test('turns from the side to the front: wider and wider', () {
       var last = -1.0;

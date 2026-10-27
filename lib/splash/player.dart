@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'scene.dart';
+
 /// The footballer the letters turn into.
 ///
 /// Every angle is in radians, measured from "straight down" and positive when
@@ -329,11 +331,35 @@ abstract final class PlayerPoses {
     yaw: _rad(52),
     shout: 0.4,
     lift: 40,
-    x: 14,
+    x: -Scene.playerX / 2,
   );
 
-  /// "Siuuu": facing the crowd, the legs wide apart, the arms straight down
-  /// and out, the chest out, the head up, the mouth open.
+  /// Coming down from the jump: the knees bend to take the landing, the arms
+  /// are already going out.
+  static final PlayerPose siuLand = PlayerPose(
+    lean: _rad(2),
+    headTilt: _rad(-14),
+    kickThigh: _rad(22),
+    kickKnee: _rad(46),
+    kickFoot: _rad(60),
+    kickSide: _rad(25),
+    plantThigh: _rad(22),
+    plantKnee: _rad(46),
+    plantSide: _rad(25),
+    nearArm: _rad(0),
+    nearElbow: _rad(0),
+    nearArmSide: _rad(30),
+    farArm: _rad(0),
+    farElbow: _rad(0),
+    farArmSide: _rad(30),
+    yaw: _rad(90),
+    shout: 1,
+    x: -Scene.playerX,
+  );
+
+  /// "Siuuu": facing the crowd, in the middle of the screen, the legs wide
+  /// apart, the arms straight down and out, the chest out, the head up, the
+  /// mouth open.
   static final PlayerPose siu = PlayerPose(
     lean: _rad(-6),
     headTilt: _rad(-22),
@@ -351,7 +377,7 @@ abstract final class PlayerPoses {
     farArmSide: _rad(36),
     yaw: _rad(90),
     shout: 1,
-    x: 14,
+    x: -Scene.playerX,
   );
 }
 
@@ -392,8 +418,11 @@ enum BodyRole {
   sole,
   farSole,
 
-  /// The teeth.
-  teeth,
+  /// The teeth and the shine of the eyes.
+  white,
+
+  /// The tongue.
+  tongue,
 }
 
 /// A point of the body in three directions: [xy] is where it is as seen from
@@ -423,7 +452,7 @@ class PlayerRig {
   static const double shin = 37;
   static const double foot = 14;
   static const double torso = 50;
-  static const double headRadius = 11.5;
+  static const double headRadius = 12.4;
   static const double upperArm = 24;
   static const double foreArm = 23;
   static const double ankleHeight = 5;
@@ -513,7 +542,7 @@ class PlayerRig {
     final shoulderL = _P(up * (torso - 5));
     final shoulderNear = _P(up * (torso - 5), shoulderHalf);
     final shoulderFar = _P(up * (torso - 5), -shoulderHalf);
-    final headL = _P(up * torso + headUp * (headRadius + 5));
+    final headL = _P(up * torso + headUp * (headRadius + 6.5));
 
     final plantKneeL = hipFar + _step(thigh, p.plantThigh, p.plantSide, -1);
     final plantAnkleL = plantKneeL + _step(shin, plantShin, p.plantSide, -1);
@@ -604,9 +633,9 @@ class PlayerRig {
     // The collar: a navy band round the neck. From the side it is a short bar
     // across the neck; from the front it is a U, with the skin of the chest in
     // it.
-    final collarHalf = _lerp(4.4, 7.2, _front);
-    final collarAt = shoulder + spine * 3.4;
-    final dip = 3.6 * _front;
+    final collarHalf = _lerp(4.4, 8.0, _front);
+    final collarAt = shoulder + spine * 3.2;
+    final dip = 4.6 * _front;
     final collar = Path();
     const collarSteps = 8;
     for (var i = 0; i < collarSteps; i++) {
@@ -617,23 +646,25 @@ class PlayerRig {
             spine * (dip * (1 - t * t));
       }
 
-      collar.addPath(_tube(at(i), at(i + 1), const [1.2, 1.2]), Offset.zero);
+      collar.addPath(_tube(at(i), at(i + 1), const [1.5, 1.5]), Offset.zero);
     }
     final neckOpening = _tube(
       collarAt - spine * (dip + 0.4),
       collarAt + spine * 3,
       [collarHalf * 0.5 * _front + 0.1, collarHalf * 0.62 * _front + 0.1],
     );
+    // From the front both arms hang over the shirt; from the side the far one
+    // is behind it.
+    final farArm = _arm(
+      shoulderFar,
+      farElbowL,
+      farHandL,
+      BodyRole.farSkin,
+      BodyRole.farShirt,
+      sleeve,
+    );
     parts = [
-      // The arm that is far.
-      ..._arm(
-        shoulderFar,
-        farElbowL,
-        farHandL,
-        BodyRole.farSkin,
-        BodyRole.farShirt,
-        sleeve,
-      ),
+      if (!legsBehind) ...farArm,
       ...farLeg,
       if (legsBehind) ...nearLeg,
       // The neck and the body.
@@ -663,6 +694,7 @@ class PlayerRig {
       ...headParts.parts,
       // The leg and the arm that are near.
       if (!legsBehind) ...nearLeg,
+      if (legsBehind) ...farArm,
       ..._arm(
         shoulderNear,
         nearElbowL,
@@ -701,6 +733,21 @@ class PlayerRig {
     final sockTop = Offset.lerp(knee, ankle, 0.42)!;
     final band = Offset.lerp(sockTop, ankle, 0.1)!;
     final (bootPath, solePath) = _boot(ankleL, toeL, sign, toeOut);
+    // The green stripe down the side of the shorts: along the middle of the
+    // leg from the side, at the outer edge of it from the front.
+    final along = _unit(endShorts - top);
+    final outward = (top - hip).dx >= 0 ? 1.0 : -1.0;
+    var n = Offset(-along.dy, along.dx);
+    if (n.dx * outward < 0) n = -n;
+    final off = n * (6.6 * _front);
+    final stripe = _tube(
+      top + off + along * 2,
+      endShorts + off,
+      const [0.9, 0.9],
+      capA: 0.3,
+      capB: 0.3,
+    );
+    final stripeRole = sign > 0 ? BodyRole.shirt : BodyRole.farShirt;
     return [
       BodyPart(_tube(top, knee, const [9.4, 9.2, 7.9, 6.5]), skin),
       BodyPart(_tube(knee, ankle, const [6.3, 6.9, 5.7, 4.2]), skin),
@@ -714,6 +761,7 @@ class PlayerRig {
         _tube(top, endShorts, const [9.8, 9.3, 9.0], capB: 0.25),
         shorts,
       ),
+      BodyPart(stripe, stripeRole),
       BodyPart(bootPath, boot),
       BodyPart(solePath, sole, shaded: false),
     ];
@@ -835,9 +883,10 @@ class PlayerRig {
     ];
   }
 
-  /// The head: skin, ears, a nose, brows and an eye or two, hair over the top
-  /// and the back (swept up at the front), and a mouth that opens to shout.
-  /// The ear that is far goes behind the head.
+  /// The head: skin, ears, a nose, eyes with a shine in them, hair over the top
+  /// and the back (swept up at the front like Cristiano's), and a mouth that
+  /// opens to shout, with teeth and a tongue. The ear that is far goes behind
+  /// the head.
   ({List<BodyPart> parts, BodyPart farEar, Offset mouth}) _head(
     _P headL,
     Offset up,
@@ -860,26 +909,32 @@ class PlayerRig {
     ]);
 
     // The hair: from over the forehead round the top to the nape; seen from
-    // the front it is a cap from ear to ear. It is swept up over the
-    // forehead, and a little higher at the crown from the front.
+    // the front it is a cap from ear to ear. It is swept up and back over the
+    // forehead, and from the front it stands up at the crown. Its lower edge
+    // is a curve: the hairline arches over the forehead from the front.
     final towardsFront = _lerp(_rad(60), _rad(70), _front);
     final towardsBack = _lerp(_rad(120), _rad(70), _front);
-    // From the front the hair stops at the hairline, above the eyes and the
-    // mouth; from the side it comes down to the middle of the head.
-    final hairline = c + upScreen * (0.42 * r * _front);
-    final hair = Path()..moveTo(hairline.dx, hairline.dy);
-    const steps = 18;
+    final hair = Path();
+    const steps = 20;
+    Offset? first;
     for (var i = 0; i <= steps; i++) {
       final a = -towardsBack + (towardsFront + towardsBack) * i / steps;
       final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
       final quiff =
-          2.8 *
-          math.exp(-math.pow((a - _rad(30)) / _rad(20), 2)) *
+          3.4 *
+          math.exp(-math.pow((a - _rad(34)) / _rad(21), 2)) *
           (1 - _front);
-      final crown = 1.8 * _front * math.exp(-math.pow(a / _rad(28), 2));
+      final crown = 3.0 * _front * math.exp(-math.pow(a / _rad(26), 2));
       final point = c + dir * (r + 0.7 + quiff + crown);
-      hair.lineTo(point.dx, point.dy);
+      if (first == null) {
+        first = point;
+        hair.moveTo(point.dx, point.dy);
+      } else {
+        hair.lineTo(point.dx, point.dy);
+      }
     }
+    final arch = c + upScreen * (0.78 * r * _front);
+    hair.quadraticBezierTo(arch.dx, arch.dy, first!.dx, first.dy);
     hair.close();
 
     final nearEar = at(-0.12 * r, 0, 0.98 * r);
@@ -888,18 +943,29 @@ class PlayerRig {
     final eyeFar = at(0.78 * r, -0.18 * r, -0.36 * r);
     final nose = at(0.94 * r, -0.46 * r, 0);
     final mouthAt = at(0.58 * r, -0.8 * r, 0);
-    final mouthWidth = 2 + 3.6 * pose.shout;
-    final mouthHeight = 1.4 + 4.4 * pose.shout;
+    final mouthWidth = 2 + 3.9 * pose.shout;
+    final mouthHeight = 1.4 + 4.9 * pose.shout;
     final showFar = _front > 0.35;
+    final shine = upScreen * 0.55 - frontScreen * 0.1;
+
+    BodyPart eye(Offset at) =>
+        BodyPart(_capsule(at, 1.35, at, 1.35), BodyRole.hair, shaded: false);
+    BodyPart eyeShine(Offset at) => BodyPart(
+      _capsule(at + shine, 0.5, at + shine, 0.5),
+      BodyRole.white,
+      shaded: false,
+    );
+    Path oval(Offset center, double width, double height) => Path()
+      ..addOval(Rect.fromCenter(center: center, width: width, height: height));
 
     return (
       parts: [
         BodyPart(skull, BodyRole.skin),
-        BodyPart(_capsule(nearEar, 2.4, nearEar, 2.4), BodyRole.shade),
+        BodyPart(_capsule(nearEar, 2.5, nearEar, 2.5), BodyRole.shade),
         BodyPart(hair, BodyRole.hair),
-        BodyPart(_capsule(nose, 1.6, nose, 1.6), BodyRole.shade, shaded: false),
+        BodyPart(_capsule(nose, 1.7, nose, 1.7), BodyRole.shade, shaded: false),
         // The hair comes down in front of the ears, seen from the front.
-        if (_front > 0.75)
+        if (_front > 0.9)
           for (final side in const [1.0, -1.0])
             BodyPart(
               _tube(
@@ -910,44 +976,38 @@ class PlayerRig {
               BodyRole.hair,
               shaded: false,
             ),
-        BodyPart(
-          _capsule(eyeNear, 1.25, eyeNear, 1.25),
-          BodyRole.hair,
-          shaded: false,
-        ),
-        if (showFar)
-          BodyPart(
-            _capsule(eyeFar, 1.25, eyeFar, 1.25),
-            BodyRole.hair,
-            shaded: false,
-          ),
+        eye(eyeNear),
+        eyeShine(eyeNear),
+        if (showFar) ...[eye(eyeFar), eyeShine(eyeFar)],
         if (_front > 0.45 && pose.shout > 0.05) ...[
           BodyPart(
-            Path()..addOval(
-              Rect.fromCenter(
-                center: mouthAt,
-                width: mouthWidth,
-                height: mouthHeight,
-              ),
-            ),
+            oval(mouthAt, mouthWidth, mouthHeight),
             BodyRole.hair,
             shaded: false,
           ),
-          if (pose.shout > 0.55)
+          if (pose.shout > 0.55) ...[
             BodyPart(
-              Path()..addOval(
-                Rect.fromCenter(
-                  center: mouthAt + upScreen * (mouthHeight * 0.24),
-                  width: mouthWidth * 0.7,
-                  height: mouthHeight * 0.26,
-                ),
+              oval(
+                mouthAt + upScreen * (mouthHeight * 0.26),
+                mouthWidth * 0.72,
+                mouthHeight * 0.26,
               ),
-              BodyRole.teeth,
+              BodyRole.white,
               shaded: false,
             ),
+            BodyPart(
+              oval(
+                mouthAt - upScreen * (mouthHeight * 0.26),
+                mouthWidth * 0.6,
+                mouthHeight * 0.3,
+              ),
+              BodyRole.tongue,
+              shaded: false,
+            ),
+          ],
         ],
       ],
-      farEar: BodyPart(_capsule(farEar, 2.4, farEar, 2.4), BodyRole.shade),
+      farEar: BodyPart(_capsule(farEar, 2.5, farEar, 2.5), BodyRole.shade),
       mouth: mouthAt,
     );
   }
@@ -1074,7 +1134,8 @@ class PlayerRig {
     BodyRole.trim: Color(0xFF0A2B60),
     BodyRole.sole: Color(0xFF2160C0),
     BodyRole.farSole: Color(0xFF194B99),
-    BodyRole.teeth: Color(0xFFFFFFFF),
+    BodyRole.white: Color(0xFFFFFFFF),
+    BodyRole.tongue: Color(0xFFD9667A),
   };
 
   /// The color of a part: what is far is a shade darker, unless he faces us,
@@ -1092,6 +1153,11 @@ class PlayerRig {
     if (near == role || _front <= 0) return colors[role]!;
     return Color.lerp(colors[role], colors[near], _front)!;
   }
+
+  /// Whether a role is a small detail that the dust leaves out: it is white,
+  /// or too small to be seen as dust.
+  static bool isDetail(BodyRole role) =>
+      role == BodyRole.white || role == BodyRole.tongue;
 
   /// Whether a role is painted with the green of the shirt.
   static bool isGreen(BodyRole role) =>

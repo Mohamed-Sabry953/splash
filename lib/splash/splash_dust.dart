@@ -46,7 +46,7 @@ class SplashDust {
       return [
         // (white dust would not be seen on the white screen: no teeth)
         for (final part in rig.parts)
-          if (part.role != BodyRole.teeth)
+          if (!PlayerRig.isDetail(part.role))
             DustShape(
               part.path,
               rig.colorOf(part.role),
