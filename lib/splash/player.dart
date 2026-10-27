@@ -411,6 +411,9 @@ enum BodyRole {
   /// The darker skin of the nose and the ears.
   shade,
 
+  /// The light on the hair.
+  sheen,
+
   /// The navy bands of the collar, the sleeves and the socks.
   trim,
 
@@ -617,7 +620,7 @@ class PlayerRig {
       for (var i = 0; i < side.length; i++) _lerp(side[i], front[i], _front),
     ];
     final shirtWidth = body(
-      const [10.4, 9.4, 10.4, 12.4, 13.2],
+      const [10.8, 8.8, 10.0, 12.8, 12.8],
       const [14.6, 13.0, 15.6, 19.6, 20.6],
     );
     final pelvisWidth = body(const [10.4, 10.6], const [16.6, 15.6]);
@@ -921,11 +924,13 @@ class PlayerRig {
       final a = -towardsBack + (towardsFront + towardsBack) * i / steps;
       final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
       final quiff =
-          3.4 *
-          math.exp(-math.pow((a - _rad(34)) / _rad(21), 2)) *
+          4.6 *
+          math.exp(-math.pow((a - _rad(42)) / _rad(17), 2)) *
           (1 - _front);
       final crown = 3.0 * _front * math.exp(-math.pow(a / _rad(26), 2));
-      final point = c + dir * (r + 0.7 + quiff + crown);
+      // The nape is cut short: the hair is not as deep at the back.
+      final nape = -1.4 * (1 - _front) * _smooth((-a - _rad(70)) / _rad(50));
+      final point = c + dir * (r + 0.7 + quiff + crown + nape);
       if (first == null) {
         first = point;
         hair.moveTo(point.dx, point.dy);
@@ -936,6 +941,25 @@ class PlayerRig {
     final arch = c + upScreen * (0.78 * r * _front);
     hair.quadraticBezierTo(arch.dx, arch.dy, first!.dx, first.dy);
     hair.close();
+
+    // The light on the hair: a thin band along the top of it, a little in from
+    // the edge.
+    final sheen = Path();
+    const sheenSteps = 7;
+    for (var i = 0; i < sheenSteps; i++) {
+      Offset on(int k) {
+        final a = _lerp(
+          -_rad(25),
+          _lerp(_rad(62), _rad(48), _front),
+          k / sheenSteps,
+        );
+        final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
+        final lift = 3.4 * _front * math.exp(-math.pow(a / _rad(26), 2));
+        return c + dir * (r * 0.86 + lift);
+      }
+
+      sheen.addPath(_tube(on(i), on(i + 1), const [0.8, 0.8]), Offset.zero);
+    }
 
     final nearEar = at(-0.12 * r, 0, 0.98 * r);
     final farEar = at(-0.12 * r, 0, -0.98 * r);
@@ -963,6 +987,7 @@ class PlayerRig {
         BodyPart(skull, BodyRole.skin),
         BodyPart(_capsule(nearEar, 2.5, nearEar, 2.5), BodyRole.shade),
         BodyPart(hair, BodyRole.hair),
+        BodyPart(sheen, BodyRole.sheen, shaded: false),
         BodyPart(_capsule(nose, 1.7, nose, 1.7), BodyRole.shade, shaded: false),
         // The hair comes down in front of the ears, seen from the front.
         if (_front > 0.9)
@@ -979,6 +1004,18 @@ class PlayerRig {
         eye(eyeNear),
         eyeShine(eyeNear),
         if (showFar) ...[eye(eyeFar), eyeShine(eyeFar)],
+        // A closed mouth: a short line along the face from the side, across it
+        // from the front.
+        if (!(_front > 0.45 && pose.shout > 0.05))
+          BodyPart(
+            _tube(
+              at(0.95 * r, -0.62 * r, 0.2 * r),
+              at(0.78 * r, -0.66 * r, -0.2 * r),
+              const [0.5, 0.5],
+            ),
+            BodyRole.hair,
+            shaded: false,
+          ),
         if (_front > 0.45 && pose.shout > 0.05) ...[
           BodyPart(
             oval(mouthAt, mouthWidth, mouthHeight),
@@ -1013,6 +1050,12 @@ class PlayerRig {
   }
 
   static double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+  /// 0 below [t] = 0, 1 above t = 1, smooth in between.
+  static double _smooth(double t) {
+    final x = t.clamp(0.0, 1.0);
+    return x * x * (3 - 2 * x);
+  }
 
   static Offset _unit(Offset v) {
     final d = v.distance;
@@ -1131,6 +1174,7 @@ class PlayerRig {
     BodyRole.farBoot: Color(0xFF163F7E),
     BodyRole.hair: Color(0xFF0A2B60),
     BodyRole.shade: Color(0xFFCF9068),
+    BodyRole.sheen: Color(0xFF3B64A8),
     BodyRole.trim: Color(0xFF0A2B60),
     BodyRole.sole: Color(0xFF2160C0),
     BodyRole.farSole: Color(0xFF194B99),
@@ -1187,30 +1231,32 @@ class PlayerRig {
       );
     }
     final paint = Paint();
-    final stroke = Paint()
+    // A thin darker line round the outside of the body, like a drawing. All the
+    // lines are painted first, and the parts over them: the lines inside the
+    // body are covered, and only the ones at the edge are seen. The boots and
+    // the hair have corners, and the line rounds them.
+    final outline = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.7
       ..strokeJoin = StrokeJoin.round;
     for (final part in parts) {
+      if (!part.shaded) continue;
+      canvas.drawPath(part.path, outline..color = _ink(colorOf(part.role)));
+    }
+    for (final part in parts) {
       final color = colorOf(part.role);
-      final shader = part.shaded ? _lit(part.path.getBounds(), color) : null;
       paint
         ..color = color
-        ..shader = shader;
+        ..shader = part.shaded ? _lit(part.path.getBounds(), color) : null;
       canvas.drawPath(part.path, paint);
-      // The boots and the hair have corners: they are rounded by an outline.
-      if (part.role == BodyRole.boot ||
-          part.role == BodyRole.farBoot ||
-          part.role == BodyRole.hair) {
-        stroke
-          ..color = color
-          ..shader = shader;
-        canvas.drawPath(part.path, stroke);
-      }
     }
     if (number != null) _paintNumber(canvas, number);
     if (alpha < 1) canvas.restore();
   }
+
+  /// The line round a part of the color [color].
+  static Color _ink(Color color) =>
+      Color.lerp(color, const Color(0xFF06122B), 0.4)!;
 
   /// Where the light comes from: the top left of the screen.
   static const Offset _light = Offset(-0.55, -0.83);
