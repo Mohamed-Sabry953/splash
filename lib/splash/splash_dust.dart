@@ -44,12 +44,14 @@ class SplashDust {
         facing: -1,
       );
       return [
+        // (white dust would not be seen on the white screen: no teeth)
         for (final part in rig.parts)
-          DustShape(
-            part.path,
-            rig.colorOf(part.role),
-            PlayerRig.isGreen(part.role) ? 0 : 1,
-          ),
+          if (part.role != BodyRole.teeth)
+            DustShape(
+              part.path,
+              rig.colorOf(part.role),
+              PlayerRig.isGreen(part.role) ? 0 : 1,
+            ),
       ];
     }
 

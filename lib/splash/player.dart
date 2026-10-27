@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui';
 
 /// The footballer the letters turn into.
@@ -358,12 +357,16 @@ abstract final class PlayerPoses {
 
 /// The shape of a body part, and what it is made of.
 class BodyPart {
-  const BodyPart(this.path, this.role);
+  const BodyPart(this.path, this.role, {this.shaded = true});
 
   final Path path;
 
   /// Which color it takes (see [PlayerRig.colors]).
   final BodyRole role;
+
+  /// Whether the light falls on it (a little lighter on one side, a little
+  /// darker on the other); the small things (eyes, trims, teeth) are flat.
+  final bool shaded;
 }
 
 enum BodyRole {
@@ -378,6 +381,19 @@ enum BodyRole {
   boot,
   farBoot,
   hair,
+
+  /// The darker skin of the nose and the ears.
+  shade,
+
+  /// The navy bands of the collar, the sleeves and the socks.
+  trim,
+
+  /// The sole of a boot, near and far.
+  sole,
+  farSole,
+
+  /// The teeth.
+  teeth,
 }
 
 /// A point of the body in three directions: [xy] is where it is as seen from
@@ -548,6 +564,9 @@ class PlayerRig {
       shorts: BodyRole.farShorts,
       sock: BodyRole.farSock,
       boot: BodyRole.farBoot,
+      sole: BodyRole.farSole,
+      sign: -1,
+      toeOut: p.plantSide,
     );
     final nearLeg = _leg(
       hipL: hipNear,
@@ -558,18 +577,53 @@ class PlayerRig {
       shorts: BodyRole.shorts,
       sock: BodyRole.sock,
       boot: BodyRole.boot,
+      sole: BodyRole.sole,
+      sign: 1,
+      toeOut: p.kickSide,
     );
 
-    // The chest and the hips are wider when he faces the viewer.
-    final chest = 1 + 0.5 * _front;
-    final hips = 1 + 0.55 * _front;
+    // The body is deep from the side and wide from the front: from the front
+    // the chest is broad, the waist narrow and the hips a little wider.
+    List<double> body(List<double> side, List<double> front) => [
+      for (var i = 0; i < side.length; i++) _lerp(side[i], front[i], _front),
+    ];
+    final shirtWidth = body(
+      const [10.4, 9.4, 10.4, 12.4, 13.2],
+      const [14.6, 13.0, 15.6, 19.6, 20.6],
+    );
+    final pelvisWidth = body(const [10.4, 10.6], const [16.6, 15.6]);
 
     const sleeve = 0.55;
     final neckBase = _w(_P(up * (torso - 9)));
+    final spine = _unit(shoulder - hip);
+    final across = Offset(-spine.dy, spine.dx);
     final headParts = _head(headL, headUp, front);
     // From the side the near leg is in front of the body; from the front the
     // shirt hangs over the shorts, and the legs are behind it.
     final legsBehind = _front > 0.5;
+    // The collar: a navy band round the neck. From the side it is a short bar
+    // across the neck; from the front it is a U, with the skin of the chest in
+    // it.
+    final collarHalf = _lerp(4.4, 7.2, _front);
+    final collarAt = shoulder + spine * 3.4;
+    final dip = 3.6 * _front;
+    final collar = Path();
+    const collarSteps = 8;
+    for (var i = 0; i < collarSteps; i++) {
+      Offset at(int k) {
+        final t = -1 + 2 * k / collarSteps;
+        return collarAt +
+            across * (collarHalf * t) -
+            spine * (dip * (1 - t * t));
+      }
+
+      collar.addPath(_tube(at(i), at(i + 1), const [1.2, 1.2]), Offset.zero);
+    }
+    final neckOpening = _tube(
+      collarAt - spine * (dip + 0.4),
+      collarAt + spine * 3,
+      [collarHalf * 0.5 * _front + 0.1, collarHalf * 0.62 * _front + 0.1],
+    );
     parts = [
       // The arm that is far.
       ..._arm(
@@ -583,15 +637,28 @@ class PlayerRig {
       ...farLeg,
       if (legsBehind) ...nearLeg,
       // The neck and the body.
-      BodyPart(_capsule(neckBase, 4.8, head, 4.6), BodyRole.farSkin),
+      BodyPart(_tube(neckBase, head, const [4.7, 4.3, 4.5]), BodyRole.farSkin),
       BodyPart(
-        _wide(_capsule(hip, 10.6, _w(_P(up * 4)), 10.6), hips, hip.dx),
+        _tube(
+          hip - spine * 3,
+          hip + spine * 8,
+          pelvisWidth,
+          capA: _lerp(1, 0.5, _front),
+        ),
         BodyRole.shorts,
       ),
       BodyPart(
-        _wide(_capsule(hip, 10.8, shoulder, 13.4), chest, hip.dx),
+        _tube(
+          hip,
+          shoulder,
+          shirtWidth,
+          capA: _lerp(1, 0.38, _front),
+          capB: 0.5,
+        ),
         BodyRole.shirt,
       ),
+      if (_front > 0.15) BodyPart(neckOpening, BodyRole.skin),
+      BodyPart(collar, BodyRole.trim, shaded: false),
       headParts.farEar,
       ...headParts.parts,
       // The leg and the arm that are near.
@@ -613,7 +680,7 @@ class PlayerRig {
   }
 
   /// A leg: the shorts over the top of the thigh, the skin of the knee, the
-  /// sock over the lower shin, and the boot.
+  /// sock over the lower shin (with a band at its top), and the boot.
   List<BodyPart> _leg({
     required _P hipL,
     required _P kneeL,
@@ -623,24 +690,39 @@ class PlayerRig {
     required BodyRole shorts,
     required BodyRole sock,
     required BodyRole boot,
+    required BodyRole sole,
+    required double sign,
+    required double toeOut,
   }) {
     final top = _w(hipL);
     final knee = _w(kneeL);
     final ankle = _w(ankleL);
-    final midShin = Offset.lerp(knee, ankle, 0.46)!;
     final endShorts = Offset.lerp(top, knee, 0.46)!;
+    final sockTop = Offset.lerp(knee, ankle, 0.42)!;
+    final band = Offset.lerp(sockTop, ankle, 0.1)!;
+    final (bootPath, solePath) = _boot(ankleL, toeL, sign, toeOut);
     return [
-      BodyPart(_capsule(top, 9.2, knee, 6.6), skin),
-      BodyPart(_capsule(knee, 6.6, ankle, 4.2), skin),
-      BodyPart(_capsule(midShin, 5.8, ankle, 4.5), sock),
-      BodyPart(_capsule(top, 9.6, endShorts, 8.6), shorts),
-      BodyPart(_boot(ankleL, toeL), boot),
+      BodyPart(_tube(top, knee, const [9.4, 9.2, 7.9, 6.5]), skin),
+      BodyPart(_tube(knee, ankle, const [6.3, 6.9, 5.7, 4.2]), skin),
+      BodyPart(_tube(sockTop, ankle, const [5.9, 5.6, 4.6], capA: 0.4), sock),
+      BodyPart(
+        _tube(sockTop, band, const [6.0, 6.0], capA: 0.2, capB: 0.2),
+        BodyRole.trim,
+        shaded: false,
+      ),
+      BodyPart(
+        _tube(top, endShorts, const [9.8, 9.3, 9.0], capB: 0.25),
+        shorts,
+      ),
+      BodyPart(bootPath, boot),
+      BodyPart(solePath, sole, shaded: false),
     ];
   }
 
-  /// A boot: a heel, a sole and a toe, from the ankle to the toe. It is as
-  /// wide as a foot is: seen from the front it is a small block, not a line.
-  Path _boot(_P ankleL, _P toeL) {
+  /// A boot: a heel, a sole and a toe, from the ankle to the toe, and the
+  /// sole of it. It is as wide as a foot is: seen from the front it is a
+  /// small block, not a line, and the toe turns out as the legs spread.
+  (Path, Path) _boot(_P ankleL, _P toeL, double sign, double toeOut) {
     final f = toeL.xy - ankleL.xy;
     final length = f.distance;
     final u = f / length; // along the foot
@@ -655,13 +737,28 @@ class PlayerRig {
       (length - 2.0, -3.6),
       (3.5, -4.8),
     ];
-    // The outline on both sides of the foot, seen from where we are.
-    final points = <Offset>[
-      for (final side in const [-4.0, 4.0])
-        for (final (along, across) in outline)
-          _w(_P(ankleL.xy + u * along + v * across, ankleL.z + side)),
+    final sole = <(double, double)>[
+      (-5.2, 3.7),
+      (-1.5, 5.2),
+      (length - 2.5, 5.2),
+      (length + 2.2, 3.7),
+      (length + 2.3, 2.9),
+      (-5.3, 2.7),
     ];
-    return _hull(points);
+    // The outline on both sides of the foot, seen from where we are: the toe
+    // goes farther out than the heel when the foot is turned out.
+    final out = sign * math.sin(toeOut);
+    List<Offset> points(List<(double, double)> shape) => [
+      for (final side in const [-4.0, 4.0])
+        for (final (along, across) in shape)
+          _w(
+            _P(
+              ankleL.xy + u * along + v * across,
+              ankleL.z + side + out * along,
+            ),
+          ),
+    ];
+    return (_hull(points(outline)), _hull(points(sole)));
   }
 
   /// The smallest convex shape that holds [points].
@@ -698,7 +795,8 @@ class PlayerRig {
     return path..close();
   }
 
-  /// An arm: skin, with the sleeve of the shirt over the top of it, and a hand.
+  /// An arm: skin, a fist, and the sleeve of the shirt over the top of it,
+  /// with a navy band at the end of the sleeve.
   List<BodyPart> _arm(
     _P shoulderL,
     _P elbowL,
@@ -710,16 +808,36 @@ class PlayerRig {
     final s = _w(shoulderL);
     final e = _w(elbowL);
     final h = _w(handL);
+    final along = _unit(h - e);
+    Offset onArm(double t) => Offset.lerp(s, e, t)!;
     return [
-      BodyPart(_capsule(s, 5.4, e, 4.6), skin),
-      BodyPart(_capsule(e, 4.6, h, 3.6), skin),
-      BodyPart(_capsule(h, 4.6, h, 4.6), skin),
-      BodyPart(_capsule(s, 6.6, Offset.lerp(s, e, sleeve)!, 5.8), shirt),
+      BodyPart(_tube(s, e, const [5.5, 5.3, 4.6]), skin),
+      BodyPart(_tube(e, h, const [4.6, 4.8, 3.7]), skin),
+      BodyPart(
+        _tube(h - along * 0.5, h + along * 3.2, const [3.7, 4.5, 3.9]),
+        skin,
+      ),
+      BodyPart(
+        _tube(s, onArm(sleeve), const [6.8, 6.4, 5.9], capB: 0.3),
+        shirt,
+      ),
+      BodyPart(
+        _tube(
+          onArm(sleeve - 0.07),
+          onArm(sleeve + 0.01),
+          const [5.9, 5.9],
+          capA: 0.2,
+          capB: 0.2,
+        ),
+        BodyRole.trim,
+        shaded: false,
+      ),
     ];
   }
 
-  /// The head: skin, ears, an eye or two, hair over the top and the back, and
-  /// a mouth that opens to shout. The ear that is far goes behind the head.
+  /// The head: skin, ears, a nose, brows and an eye or two, hair over the top
+  /// and the back (swept up at the front), and a mouth that opens to shout.
+  /// The ear that is far goes behind the head.
   ({List<BodyPart> parts, BodyPart farEar, Offset mouth}) _head(
     _P headL,
     Offset up,
@@ -731,53 +849,105 @@ class PlayerRig {
     Offset at(double f, double u, double z) =>
         _w(_P(headL.xy + front * f + up * u, z));
     final r = headRadius;
-
-    // The hair: from over the forehead round the top to the nape; seen from
-    // the front it is a cap from ear to ear.
     final upScreen = _unit(at(0, 1, 0) - c);
     final frontScreen = _frontOnScreen(front, upScreen);
+
+    // The skull: an egg with the chin at the narrow end.
+    final skull = _tube(c + upScreen * (0.04 * r), c - upScreen * (0.22 * r), [
+      0.96 * r,
+      r,
+      0.84 * r,
+    ]);
+
+    // The hair: from over the forehead round the top to the nape; seen from
+    // the front it is a cap from ear to ear. It is swept up over the
+    // forehead, and a little higher at the crown from the front.
     final towardsFront = _lerp(_rad(60), _rad(70), _front);
     final towardsBack = _lerp(_rad(120), _rad(70), _front);
     // From the front the hair stops at the hairline, above the eyes and the
     // mouth; from the side it comes down to the middle of the head.
     final hairline = c + upScreen * (0.42 * r * _front);
     final hair = Path()..moveTo(hairline.dx, hairline.dy);
-    const steps = 14;
+    const steps = 18;
     for (var i = 0; i <= steps; i++) {
       final a = -towardsBack + (towardsFront + towardsBack) * i / steps;
       final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
-      final point = c + dir * (r + 0.7);
+      final quiff =
+          2.8 *
+          math.exp(-math.pow((a - _rad(30)) / _rad(20), 2)) *
+          (1 - _front);
+      final crown = 1.8 * _front * math.exp(-math.pow(a / _rad(28), 2));
+      final point = c + dir * (r + 0.7 + quiff + crown);
       hair.lineTo(point.dx, point.dy);
     }
     hair.close();
 
     final nearEar = at(-0.12 * r, 0, 0.98 * r);
     final farEar = at(-0.12 * r, 0, -0.98 * r);
-    final eyeNear = at(0.62 * r, -0.18 * r, 0.36 * r);
-    final eyeFar = at(0.62 * r, -0.18 * r, -0.36 * r);
-    final mouthAt = at(0.58 * r, -0.72 * r, 0);
+    final eyeNear = at(0.78 * r, -0.18 * r, 0.36 * r);
+    final eyeFar = at(0.78 * r, -0.18 * r, -0.36 * r);
+    final nose = at(0.94 * r, -0.46 * r, 0);
+    final mouthAt = at(0.58 * r, -0.8 * r, 0);
+    final mouthWidth = 2 + 3.6 * pose.shout;
+    final mouthHeight = 1.4 + 4.4 * pose.shout;
+    final showFar = _front > 0.35;
 
     return (
       parts: [
-        BodyPart(_capsule(c, r, c, r), BodyRole.skin),
-        BodyPart(_capsule(nearEar, 2.4, nearEar, 2.4), BodyRole.farSkin),
+        BodyPart(skull, BodyRole.skin),
+        BodyPart(_capsule(nearEar, 2.4, nearEar, 2.4), BodyRole.shade),
         BodyPart(hair, BodyRole.hair),
-        BodyPart(_capsule(eyeNear, 1.25, eyeNear, 1.25), BodyRole.hair),
-        if (_front > 0.35)
-          BodyPart(_capsule(eyeFar, 1.25, eyeFar, 1.25), BodyRole.hair),
-        if (_front > 0.45 && pose.shout > 0.05)
+        BodyPart(_capsule(nose, 1.6, nose, 1.6), BodyRole.shade, shaded: false),
+        // The hair comes down in front of the ears, seen from the front.
+        if (_front > 0.75)
+          for (final side in const [1.0, -1.0])
+            BodyPart(
+              _tube(
+                at(0.12 * r, 0.3 * r, 0.93 * r * side),
+                at(0.12 * r, -0.12 * r, 0.93 * r * side),
+                const [1.2, 1.0],
+              ),
+              BodyRole.hair,
+              shaded: false,
+            ),
+        BodyPart(
+          _capsule(eyeNear, 1.25, eyeNear, 1.25),
+          BodyRole.hair,
+          shaded: false,
+        ),
+        if (showFar)
+          BodyPart(
+            _capsule(eyeFar, 1.25, eyeFar, 1.25),
+            BodyRole.hair,
+            shaded: false,
+          ),
+        if (_front > 0.45 && pose.shout > 0.05) ...[
           BodyPart(
             Path()..addOval(
               Rect.fromCenter(
                 center: mouthAt,
-                width: 2 + 3.6 * pose.shout,
-                height: 1.4 + 4.4 * pose.shout,
+                width: mouthWidth,
+                height: mouthHeight,
               ),
             ),
             BodyRole.hair,
+            shaded: false,
           ),
+          if (pose.shout > 0.55)
+            BodyPart(
+              Path()..addOval(
+                Rect.fromCenter(
+                  center: mouthAt + upScreen * (mouthHeight * 0.24),
+                  width: mouthWidth * 0.7,
+                  height: mouthHeight * 0.26,
+                ),
+              ),
+              BodyRole.teeth,
+              shaded: false,
+            ),
+        ],
       ],
-      farEar: BodyPart(_capsule(farEar, 2.4, farEar, 2.4), BodyRole.farSkin),
+      farEar: BodyPart(_capsule(farEar, 2.4, farEar, 2.4), BodyRole.shade),
       mouth: mouthAt,
     );
   }
@@ -798,16 +968,72 @@ class PlayerRig {
     return across.dx * facing >= 0 ? across : -across;
   }
 
-  /// [path] made [factor] times as wide, about the line [x].
-  static Path _wide(Path path, double factor, double x) {
-    if ((factor - 1).abs() < 1e-6) return path;
-    final m = Float64List(16)
-      ..[0] = factor
-      ..[5] = 1
-      ..[10] = 1
-      ..[15] = 1
-      ..[12] = x * (1 - factor);
-    return path.transform(m);
+  /// A smooth bar from [a] to [b]. [radii] are how wide it is (half of it)
+  /// at points spread along it from end to end, so that it can swell like a
+  /// muscle; its ends are rounded, [capA] and [capB] times as far as they are
+  /// wide (less than 1 makes them flatter).
+  static Path _tube(
+    Offset a,
+    Offset b,
+    List<double> radii, {
+    double capA = 1,
+    double capB = 1,
+  }) {
+    final d = b - a;
+    final length = d.distance;
+    if (length < 0.001) {
+      return Path()..addOval(Rect.fromCircle(center: a, radius: radii.first));
+    }
+    final u = d / length;
+    final n = Offset(-u.dy, u.dx);
+
+    // A smooth curve through the radii (Catmull-Rom).
+    double radiusAt(double t) {
+      final x = t * (radii.length - 1);
+      final i = x.floor().clamp(0, radii.length - 2);
+      final f = x - i;
+      double at(int k) => radii[k.clamp(0, radii.length - 1)];
+      final p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+      return 0.5 *
+          (2 * p1 +
+              (p2 - p0) * f +
+              (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f +
+              (3 * p1 - p0 - 3 * p2 + p3) * f * f * f);
+    }
+
+    const perSegment = 5;
+    const arc = 8;
+    final count = (radii.length - 1) * perSegment;
+    final path = Path();
+    final right = <Offset>[];
+    for (var i = 0; i <= count; i++) {
+      final t = i / count;
+      final c = a + d * t;
+      final r = radiusAt(t);
+      final p = c + n * r;
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+      right.add(c - n * r);
+    }
+    // Round the end at b, from one side to the other.
+    final rb = radii.last;
+    for (var k = 1; k < arc; k++) {
+      final angle = math.pi * k / arc;
+      final p =
+          b + n * (rb * math.cos(angle)) + u * (rb * capB * math.sin(angle));
+      path.lineTo(p.dx, p.dy);
+    }
+    for (final p in right.reversed) {
+      path.lineTo(p.dx, p.dy);
+    }
+    // And the end at a.
+    final ra = radii.first;
+    for (var k = 1; k < arc; k++) {
+      final angle = math.pi * k / arc;
+      final p =
+          a - n * (ra * math.cos(angle)) - u * (ra * capA * math.sin(angle));
+      path.lineTo(p.dx, p.dy);
+    }
+    return path..close();
   }
 
   /// A rounded bar from [a] to [b], [ra] wide at one end and [rb] at the other.
@@ -844,6 +1070,11 @@ class PlayerRig {
     BodyRole.boot: Color(0xFF0A2B60),
     BodyRole.farBoot: Color(0xFF163F7E),
     BodyRole.hair: Color(0xFF0A2B60),
+    BodyRole.shade: Color(0xFFCF9068),
+    BodyRole.trim: Color(0xFF0A2B60),
+    BodyRole.sole: Color(0xFF2160C0),
+    BodyRole.farSole: Color(0xFF194B99),
+    BodyRole.teeth: Color(0xFFFFFFFF),
   };
 
   /// The color of a part: what is far is a shade darker, unless he faces us,
@@ -855,6 +1086,7 @@ class PlayerRig {
       BodyRole.farShorts => BodyRole.shorts,
       BodyRole.farSock => BodyRole.sock,
       BodyRole.farBoot => BodyRole.boot,
+      BodyRole.farSole => BodyRole.sole,
       _ => role,
     };
     if (near == role || _front <= 0) return colors[role]!;
@@ -895,16 +1127,43 @@ class PlayerRig {
       ..strokeJoin = StrokeJoin.round;
     for (final part in parts) {
       final color = colorOf(part.role);
-      canvas.drawPath(part.path, paint..color = color);
+      final shader = part.shaded ? _lit(part.path.getBounds(), color) : null;
+      paint
+        ..color = color
+        ..shader = shader;
+      canvas.drawPath(part.path, paint);
       // The boots and the hair have corners: they are rounded by an outline.
       if (part.role == BodyRole.boot ||
           part.role == BodyRole.farBoot ||
           part.role == BodyRole.hair) {
-        canvas.drawPath(part.path, stroke..color = color);
+        stroke
+          ..color = color
+          ..shader = shader;
+        canvas.drawPath(part.path, stroke);
       }
     }
     if (number != null) _paintNumber(canvas, number);
     if (alpha < 1) canvas.restore();
+  }
+
+  /// Where the light comes from: the top left of the screen.
+  static const Offset _light = Offset(-0.55, -0.83);
+
+  /// [color] a little lighter on the side of the light and a little darker on
+  /// the other, across [bounds]: it makes the flat shapes look round.
+  static Shader _lit(Rect bounds, Color color) {
+    final half =
+        (bounds.width * _light.dx.abs() + bounds.height * _light.dy.abs()) / 2;
+    return Gradient.linear(
+      bounds.center + _light * half,
+      bounds.center - _light * half,
+      [
+        Color.lerp(color, const Color(0xFFFFFFFF), 0.14)!,
+        color,
+        Color.lerp(color, const Color(0xFF06122B), 0.2)!,
+      ],
+      const [0, 0.42, 1],
+    );
   }
 
   /// The number on the shirt, white, small and turned with the body.
