@@ -73,7 +73,7 @@ The icon of the app (the ball and the green 5, on a navy rounded square) is made
 
 ```sh
 pip install numpy pillow
-python tool/make_icons.py      # iOS (all the sizes), Android (adaptive, themed and plain)
+python tool/make_icons.py      # iOS (all the sizes), Android (adaptive and plain)
 ```
 
 ![icon](docs/app_icon.png)

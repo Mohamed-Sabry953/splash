@@ -8,7 +8,6 @@ at 1024 px. Then it writes:
   iOS      ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png   (square, no alpha)
   Android  android/app/src/main/res/mipmap-*/ic_launcher.png     (rounded square)
            android/app/src/main/res/mipmap-*/ic_launcher_foreground.png   (adaptive)
-           android/app/src/main/res/mipmap-*/ic_launcher_monochrome.png    (themed)
            android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
            android/app/src/main/res/values/ic_launcher_background.xml
 
@@ -123,14 +122,13 @@ def main() -> None:
     canvas = Image.new("RGBA", (BIG, BIG), (0, 0, 0, 0))
     inner = int(BIG * FOREGROUND_SCALE)
     canvas.paste(resized(foreground, inner), ((BIG - inner) // 2, (BIG - inner) // 2))
-    mono = canvas.copy()
-    mono_alpha = mono.getchannel("A")
-    mono.paste((0, 0, 0, 255), mask=mono_alpha)
     adaptive = {"mdpi": 108, "hdpi": 162, "xhdpi": 216, "xxhdpi": 324, "xxxhdpi": 432}
     for density, size in adaptive.items():
         save(resized(canvas, size), res / f"mipmap-{density}/ic_launcher_foreground.png")
-        save(resized(mono, size), res / f"mipmap-{density}/ic_launcher_monochrome.png")
 
+    # (No <monochrome> layer: with one, the phones that tint the icons to the
+    # wallpaper (Android 13 and later, "themed icons") would turn it into a white
+    # logo on a blue square, and lose the green and the white of the ball.)
     xml = res / "mipmap-anydpi-v26/ic_launcher.xml"
     xml.parent.mkdir(parents=True, exist_ok=True)
     xml.write_text(
@@ -138,7 +136,6 @@ def main() -> None:
         '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
         '    <background android:drawable="@color/ic_launcher_background"/>\n'
         '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'
-        '    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>\n'
         "</adaptive-icon>\n"
     )
     colors = res / "values/ic_launcher_background.xml"
