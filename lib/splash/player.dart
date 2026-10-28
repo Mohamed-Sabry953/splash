@@ -459,13 +459,13 @@ class PlayerRig {
   }
 
   /// How the body is measured, in the units of the scene.
-  static const double thigh = 38;
-  static const double shin = 37;
-  static const double foot = 14;
-  static const double torso = 50;
-  static const double headRadius = 12.4;
-  static const double upperArm = 24;
-  static const double foreArm = 23;
+  static const double thigh = 42;
+  static const double shin = 41;
+  static const double foot = 15;
+  static const double torso = 55;
+  static const double headRadius = 13;
+  static const double upperArm = 26;
+  static const double foreArm = 25;
   static const double ankleHeight = 5;
 
   /// Half the width of the hips, and of the shoulders.

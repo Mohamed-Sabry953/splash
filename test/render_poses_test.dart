@@ -42,10 +42,10 @@ void main() {
         cellWidth * (i % columns) + cellWidth / 2,
         cellHeight * (i ~/ columns) + 150,
       );
-      final rig = PlayerRig(entry.value.copyWith(x: 0), ground: 70, facing: -1);
+      final rig = PlayerRig(entry.value.copyWith(x: 0), ground: 56, facing: -1);
       canvas.drawLine(
-        const ui.Offset(-100, 70),
-        const ui.Offset(100, 70),
+        const ui.Offset(-100, 56),
+        const ui.Offset(100, 56),
         ui.Paint()
           ..color = const ui.Color(0xFFCCD6E6)
           ..strokeWidth = 1.5,

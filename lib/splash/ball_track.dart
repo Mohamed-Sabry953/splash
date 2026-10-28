@@ -54,8 +54,17 @@ class BallTrack {
       strikeRig.kickToe +
       const Offset(Scene.ballRadius * 0.55, -Scene.ballRadius * 0.85);
 
-  /// How high the ball goes: near the top of the screen.
-  Offset get apex => Offset(contact.dx - 16, -math.min(262.0, halfHeight - 90));
+  /// How high the ball goes: near the top of the screen, and at least a good
+  /// way above where the foot meets it (so that it falls on to it), and never
+  /// out of the screen.
+  Offset get apex {
+    final high = math.min(290.0, halfHeight - 90);
+    final above = -contact.dy + 40;
+    return Offset(
+      contact.dx - 16,
+      -math.min(math.max(high, above), halfHeight - 30),
+    );
+  }
 
   // --- the shot -----------------------------------------------------------
 
