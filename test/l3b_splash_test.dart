@@ -657,7 +657,7 @@ void main() {
         _app(L3bSplashScreen(haptics: false, onFinished: () => done++)),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 4450));
+      await tester.pump(const Duration(milliseconds: 5450));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -673,7 +673,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 2175));
+      await tester.pump(const Duration(milliseconds: 2675));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -743,7 +743,7 @@ void main() {
 
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4600; ms += 50) {
+      for (var ms = 0; ms < 5600; ms += 50) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(taps, [
@@ -760,7 +760,7 @@ void main() {
       // Nothing answers the call: it is what a phone without a motor does.
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4600; ms += 100) {
+      for (var ms = 0; ms < 5600; ms += 100) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(tester.takeException(), isNull);

@@ -508,7 +508,23 @@ class _Frame {
         Curves.easeOutCubic,
       );
     } else {
-      pose = PlayerPoses.siu;
+      // He pumps his chest while he shouts, and stands as he was when it is
+      // time to turn into the letters.
+      final calm =
+          1 -
+          seg(
+            time,
+            SplashTimeline.unformStart - 220,
+            SplashTimeline.unformStart,
+          );
+      final wave =
+          (0.5 +
+              0.5 *
+                  math.sin(
+                    (time - SplashTimeline.siuSettle) * 0.011 - math.pi / 2,
+                  )) *
+          calm;
+      pose = PlayerPose.lerp(PlayerPoses.siu, PlayerPoses.siuPump, wave);
     }
     // The jump is an arc: up quickly, a moment at the top, down.
     var lift = pose.lift;

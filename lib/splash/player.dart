@@ -358,6 +358,28 @@ abstract final class PlayerPoses {
     x: -Scene.playerX,
   );
 
+  /// The same, with the chest out a little more, the head a little farther
+  /// back and the arms wider: it comes and goes while he shouts.
+  static final PlayerPose siuPump = PlayerPose(
+    lean: _rad(-9),
+    headTilt: _rad(-28),
+    kickThigh: _rad(0),
+    kickKnee: _rad(0),
+    kickSide: _rad(27),
+    plantThigh: _rad(0),
+    plantKnee: _rad(0),
+    plantSide: _rad(27),
+    nearArm: _rad(0),
+    nearElbow: _rad(0),
+    nearArmSide: _rad(43),
+    farArm: _rad(0),
+    farElbow: _rad(0),
+    farArmSide: _rad(43),
+    yaw: _rad(90),
+    shout: 0.8,
+    x: -Scene.playerX,
+  );
+
   /// "Siuuu": facing the crowd, in the middle of the screen, the legs wide
   /// apart, the arms straight down and out, the chest out, the head up, the
   /// mouth open.

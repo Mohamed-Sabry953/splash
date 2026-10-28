@@ -5,7 +5,7 @@ drawn with a `CustomPainter` from the vector outline of the logo.
 
 ![preview](docs/splash_preview.gif)
 
-## The story (4.55 s)
+## The story (5.55 s)
 
 The logo shows, small and in the middle. The ball is thrown up; the letters turn into
 dust, and the dust into a player, who has his back to where the ball will go. He looks up
@@ -19,18 +19,19 @@ goes over the logo.
 | ms | what happens |
 |---|---|
 | 0–300 | the logo comes in: the 5, then the letters one after the other, each rising into its place, and the stroke of the 5 is drawn from its start to its tip |
-| 360–500 | the ball crouches, and is thrown up to the top of the screen (it gets smaller as it goes) |
-| 640–1260 | the letters dissolve into dust that flows into a player (skin, hair, kit): an athlete in the style of Cristiano Ronaldo (a high fade with a tall swept-up quiff, strong brows, stubble, broad shoulders and strong legs, and a 7 on the shorts), drawn as a cartoon in the colors of the logo |
-| 1260–1560 | he crouches, jumps and starts to go over backwards (the far leg swings up first) |
-| 1650 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
-| 1650–1870 | the ball flies to the right, stretched along the shot at first, nearly flat and high over him, and leaves the screen; he falls on his back |
-| 1920–2110 | he gets up and crouches, ready to jump |
-| 2110–2470 | the jump: he turns in the air to face us and moves to the middle of the screen, his legs open as he comes down |
-| 2470–2640 | "Siuuu": he lands in the middle of the screen with his knees bent and straightens up, his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, rays over his head, the word SIUUU popping up over them letter by letter (the Us grow as the shout goes on), a soft green light behind him, a burst of paper from behind his shoulders, and the camera pushes in (and in slowly while he shouts) |
-| 2940–3600 | he dissolves back into the letters, left to right |
-| 3160–3620 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards, a small bounce of the logo, and the 5 is pressed into the ball at that moment |
-| 3700–4280 | a shine goes over the logo, and little stars of light flash on it as it passes |
-| 4550 | `onFinished` is called |
+| 300–610 | the logo rests for a moment |
+| 610–750 | the ball crouches, and is thrown up to the top of the screen (it gets smaller as it goes) |
+| 890–1510 | the letters dissolve into dust that flows into a player (skin, hair, kit): an athlete in the style of Cristiano Ronaldo (a high fade with a tall swept-up quiff, strong brows, stubble, broad shoulders and strong legs, and a 7 on the shorts), drawn as a cartoon in the colors of the logo |
+| 1510–1810 | he crouches, jumps and starts to go over backwards (the far leg swings up first) |
+| 1900 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
+| 1900–2120 | the ball flies to the right, stretched along the shot at first, nearly flat and high over him, and leaves the screen; he falls on his back |
+| 2170–2360 | he gets up and crouches, ready to jump |
+| 2360–2720 | the jump: he turns in the air to face us and moves to the middle of the screen, his legs open as he comes down |
+| 2720–3640 | "Siuuu": he lands in the middle of the screen with his knees bent and straightens up, his legs wide, arms down and out, chest out, head up and his mouth open; shake, rings and shards on the ground, rays over his head, the word SIUUU popping up over them letter by letter (the Us grow as the shout goes on), a soft green light behind him, a burst of paper from behind his shoulders, and the camera pushes in (and in slowly while he shouts); he pumps his chest as he shouts |
+| 3640–4300 | he dissolves back into the letters, left to right |
+| 3860–4320 | the ball comes in from the left, high, and falls on the logo, growing as it comes near; it lands with a ring and a few shards, a small bounce of the logo, and the 5 is pressed into the ball at that moment |
+| 4400–4980 | a shine goes over the logo, and little stars of light flash on it as it passes |
+| 5550 | `onFinished` is called |
 
 All the times are in `lib/splash/splash_timeline.dart`; where things are (the ground
 the player stands on, the size of the logo) in `lib/splash/scene.dart`; where the ball is at every moment in `lib/splash/ball_track.dart`; the word SIUUU (its letters are drawn with a pen, not a font) in `lib/splash/siu_text.dart`; the poses of the
