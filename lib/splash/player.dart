@@ -415,6 +415,13 @@ enum BodyRole {
   /// The light on the hair.
   sheen,
 
+  /// The hair cut short at the sides and the back (a fade): the skin shows
+  /// through it.
+  fade,
+
+  /// The shadow of a beard coming through, on the chin and the jaw.
+  stubble,
+
   /// The navy bands of the collar, the sleeves and the socks.
   trim,
 
@@ -463,7 +470,7 @@ class PlayerRig {
 
   /// Half the width of the hips, and of the shoulders.
   static const double hipHalf = 5;
-  static const double shoulderHalf = 11;
+  static const double shoulderHalf = 12.5;
 
   final PlayerPose pose;
 
@@ -613,6 +620,7 @@ class PlayerRig {
       sole: BodyRole.sole,
       sign: 1,
       toeOut: p.kickSide,
+      number: true,
     );
 
     // The body is deep from the side and wide from the front: from the front
@@ -621,10 +629,10 @@ class PlayerRig {
       for (var i = 0; i < side.length; i++) _lerp(side[i], front[i], _front),
     ];
     final shirtWidth = body(
-      const [10.8, 8.8, 10.0, 12.8, 12.8],
-      const [14.6, 13.0, 15.6, 19.6, 20.6],
+      const [10.8, 8.6, 10.2, 13.6, 13.4],
+      const [14.2, 12.0, 15.4, 21.2, 23.0],
     );
-    final pelvisWidth = body(const [10.4, 10.6], const [16.6, 15.6]);
+    final pelvisWidth = body(const [10.8, 11.0], const [17.4, 16.4]);
 
     const sleeve = 0.55;
     final neckBase = _w(_P(up * (torso - 9)));
@@ -672,7 +680,7 @@ class PlayerRig {
       ...farLeg,
       if (legsBehind) ...nearLeg,
       // The neck and the body.
-      BodyPart(_tube(neckBase, head, const [4.7, 4.3, 4.5]), BodyRole.farSkin),
+      BodyPart(_tube(neckBase, head, const [5.7, 5.2, 5.4]), BodyRole.farSkin),
       BodyPart(
         _tube(
           hip - spine * 3,
@@ -729,6 +737,7 @@ class PlayerRig {
     required BodyRole sole,
     required double sign,
     required double toeOut,
+    bool number = false,
   }) {
     final top = _w(hipL);
     final knee = _w(kneeL);
@@ -752,21 +761,43 @@ class PlayerRig {
     );
     final stripeRole = sign > 0 ? BodyRole.shirt : BodyRole.farShirt;
     return [
-      BodyPart(_tube(top, knee, const [9.4, 9.2, 7.9, 6.5]), skin),
-      BodyPart(_tube(knee, ankle, const [6.3, 6.9, 5.7, 4.2]), skin),
-      BodyPart(_tube(sockTop, ankle, const [5.9, 5.6, 4.6], capA: 0.4), sock),
+      BodyPart(_tube(top, knee, const [10.2, 10.2, 8.8, 7.0]), skin),
+      BodyPart(_tube(knee, ankle, const [6.9, 7.7, 6.1, 4.4]), skin),
+      BodyPart(_tube(sockTop, ankle, const [6.3, 6.0, 4.8], capA: 0.4), sock),
       BodyPart(
-        _tube(sockTop, band, const [6.0, 6.0], capA: 0.2, capB: 0.2),
+        _tube(sockTop, band, const [6.4, 6.4], capA: 0.2, capB: 0.2),
         BodyRole.trim,
         shaded: false,
       ),
       BodyPart(
-        _tube(top, endShorts, const [9.8, 9.3, 9.0], capB: 0.25),
+        _tube(top, endShorts, const [10.8, 10.3, 10.0], capB: 0.25),
         shorts,
       ),
       BodyPart(stripe, stripeRole),
+      // The number 7 on the front of the shorts, seen from the front.
+      if (number && _front > 0.7)
+        BodyPart(_seven(top, endShorts), BodyRole.white, shaded: false),
       ..._boot(ankleL, toeL, sign, toeOut, boot, sole),
     ];
+  }
+
+  /// A "7", the number of Cristiano, on the front of a leg of the shorts from
+  /// [top] to [end]: standing up when the leg hangs down.
+  static Path _seven(Offset top, Offset end) {
+    final along = _unit(end - top);
+    final side = Offset(along.dy, -along.dx);
+    final middle = Offset.lerp(top, end, 0.66)!;
+    Offset at(double x, double y) => middle + side * x + along * y;
+    final path = Path();
+    path.addPath(
+      _tube(at(-2.4, -3.6), at(2.4, -3.6), const [0.75, 0.75]),
+      Offset.zero,
+    );
+    path.addPath(
+      _tube(at(2.4, -3.6), at(-0.9, 3.7), const [0.75, 0.75]),
+      Offset.zero,
+    );
+    return path;
   }
 
   /// A boot: the upper (a heel and a toe, from the ankle to the toe), the
@@ -887,18 +918,18 @@ class PlayerRig {
     final h = _w(handL);
     Offset onArm(double t) => Offset.lerp(s, e, t)!;
     return [
-      BodyPart(_tube(s, e, const [5.5, 5.3, 4.6]), skin),
-      BodyPart(_tube(e, h, const [4.6, 4.8, 3.7]), skin),
+      BodyPart(_tube(s, e, const [6.2, 6.0, 5.1]), skin),
+      BodyPart(_tube(e, h, const [5.1, 5.5, 4.1]), skin),
       ..._hand(e, h, skin),
       BodyPart(
-        _tube(s, onArm(sleeve), const [6.8, 6.4, 5.9], capB: 0.3),
+        _tube(s, onArm(sleeve), const [7.8, 7.3, 6.7], capB: 0.3),
         shirt,
       ),
       BodyPart(
         _tube(
           onArm(sleeve - 0.07),
           onArm(sleeve + 0.01),
-          const [5.9, 5.9],
+          const [6.7, 6.7],
           capA: 0.2,
           capB: 0.2,
         ),
@@ -969,11 +1000,12 @@ class PlayerRig {
     final frontScreen = _frontOnScreen(front, upScreen);
 
     // The skull: an egg with the chin at the narrow end.
-    final skull = _tube(c + upScreen * (0.04 * r), c - upScreen * (0.22 * r), [
+    // (a strong jaw: the chin is wide and flat)
+    final skull = _tube(c + upScreen * (0.04 * r), c - upScreen * (0.3 * r), [
       0.96 * r,
       r,
-      0.84 * r,
-    ]);
+      0.92 * r,
+    ], capB: 0.72);
 
     // The hair: from over the forehead round the top to the nape; seen from
     // the front it is a cap from ear to ear. It is swept up and back over the
@@ -981,20 +1013,22 @@ class PlayerRig {
     // is a curve: the hairline arches over the forehead from the front.
     final towardsFront = _lerp(_rad(60), _rad(70), _front);
     final towardsBack = _lerp(_rad(120), _rad(70), _front);
+    // The hair is thick on top and cut short at the sides and the back (a
+    // high fade): from the side the back of the head is only a shade of hair.
+    final solidBack = _lerp(_rad(52), _rad(66), _front);
     final hair = Path();
     const steps = 20;
     Offset? first;
     for (var i = 0; i <= steps; i++) {
-      final a = -towardsBack + (towardsFront + towardsBack) * i / steps;
+      final a = -solidBack + (towardsFront + solidBack) * i / steps;
       final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
+      // The quiff: swept up and back from the forehead, tall.
       final quiff =
-          4.6 *
-          math.exp(-math.pow((a - _rad(42)) / _rad(17), 2)) *
+          6.2 *
+          math.exp(-math.pow((a - _rad(40)) / _rad(19), 2)) *
           (1 - _front);
-      final crown = 3.0 * _front * math.exp(-math.pow(a / _rad(26), 2));
-      // The nape is cut short: the hair is not as deep at the back.
-      final nape = -1.4 * (1 - _front) * _smooth((-a - _rad(70)) / _rad(50));
-      final point = c + dir * (r + 0.7 + quiff + crown + nape);
+      final crown = 3.6 * _front * math.exp(-math.pow(a / _rad(27), 2));
+      final point = c + dir * (r + 0.7 + quiff + crown);
       if (first == null) {
         first = point;
         hair.moveTo(point.dx, point.dy);
@@ -1005,6 +1039,30 @@ class PlayerRig {
     final arch = c + upScreen * (0.78 * r * _front);
     hair.quadraticBezierTo(arch.dx, arch.dy, first!.dx, first.dy);
     hair.close();
+    // The faded part: a crescent round the back of the head, down to the neck.
+    final fade = Path();
+    const fadeSteps = 12;
+    final fadeFrom = -towardsBack;
+    final fadeTo = -solidBack + 0.08;
+    for (var i = 0; i <= fadeSteps; i++) {
+      final a = fadeFrom + (fadeTo - fadeFrom) * i / fadeSteps;
+      final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
+      final point = c + dir * (r + 0.4);
+      i == 0
+          ? fade.moveTo(point.dx, point.dy)
+          : fade.lineTo(point.dx, point.dy);
+    }
+    for (var i = fadeSteps; i >= 0; i--) {
+      final a = fadeFrom + (fadeTo - fadeFrom) * i / fadeSteps;
+      final dir = frontScreen * math.sin(a) + upScreen * math.cos(a);
+      // Thin at both ends, deep in the middle.
+      final depth = 0.18 + 0.42 * math.sin(math.pi * i / fadeSteps);
+      fade.lineTo(
+        c.dx + dir.dx * r * (1 - depth),
+        c.dy + dir.dy * r * (1 - depth),
+      );
+    }
+    fade.close();
 
     // The light on the hair: a thin band along the top of it, a little in from
     // the edge.
@@ -1023,6 +1081,25 @@ class PlayerRig {
       }
 
       sheen.addPath(_tube(on(i), on(i + 1), const [0.8, 0.8]), Offset.zero);
+    }
+    // Strands in the quiff, from its root to its tip (from the side).
+    for (final (start, end, lift)
+        in _front > 0.4
+            ? const <(double, double, double)>[]
+            : const [(30.0, 52.0, 0.92), (24.0, 46.0, 0.78)]) {
+      final from =
+          c +
+          (frontScreen * math.sin(_rad(start)) +
+                  upScreen * math.cos(_rad(start))) *
+              (r * lift);
+      final to =
+          c +
+          (frontScreen * math.sin(_rad(end)) + upScreen * math.cos(_rad(end))) *
+              (r * (lift + 0.3));
+      sheen.addPath(
+        _tube(from, to, [0.55 * (1 - _front), 0.3 * (1 - _front)]),
+        Offset.zero,
+      );
     }
 
     final nearEar = at(-0.12 * r, 0, 0.98 * r);
@@ -1049,7 +1126,15 @@ class PlayerRig {
     return (
       parts: [
         BodyPart(skull, BodyRole.skin),
+        // The shadow of a beard on the jaw, seen from the front.
+        if (_front > 0.5)
+          BodyPart(
+            oval(c - upScreen * (0.6 * r), 1.45 * r, 0.6 * r),
+            BodyRole.stubble,
+            shaded: false,
+          ),
         BodyPart(_capsule(nearEar, 2.5, nearEar, 2.5), BodyRole.shade),
+        if (_front < 0.5) BodyPart(fade, BodyRole.fade, shaded: false),
         BodyPart(hair, BodyRole.hair),
         BodyPart(sheen, BodyRole.sheen, shaded: false),
         BodyPart(_capsule(nose, 1.7, nose, 1.7), BodyRole.shade, shaded: false),
@@ -1061,6 +1146,18 @@ class PlayerRig {
                 at(0.12 * r, 0.3 * r, 0.93 * r * side),
                 at(0.12 * r, -0.12 * r, 0.93 * r * side),
                 const [1.2, 1.0],
+              ),
+              BodyRole.hair,
+              shaded: false,
+            ),
+        // Strong brows, low on the inside, seen from the front.
+        if (_front > 0.8)
+          for (final side in const [1.0, -1.0])
+            BodyPart(
+              _tube(
+                at(0.9 * r, 0.3 * r, 0.64 * r * side),
+                at(0.72 * r, 0.19 * r, 0.2 * r * side),
+                const [0.85, 0.7],
               ),
               BodyRole.hair,
               shaded: false,
@@ -1114,12 +1211,6 @@ class PlayerRig {
   }
 
   static double _lerp(double a, double b, double t) => a + (b - a) * t;
-
-  /// 0 below [t] = 0, 1 above t = 1, smooth in between.
-  static double _smooth(double t) {
-    final x = t.clamp(0.0, 1.0);
-    return x * x * (3 - 2 * x);
-  }
 
   static Offset _unit(Offset v) {
     final d = v.distance;
@@ -1226,8 +1317,8 @@ class PlayerRig {
 
   /// The colors of the parts.
   static const Map<BodyRole, Color> colors = {
-    BodyRole.skin: Color(0xFFE2A97F),
-    BodyRole.farSkin: Color(0xFFC48660),
+    BodyRole.skin: Color(0xFFD99C72),
+    BodyRole.farSkin: Color(0xFFBC8058),
     BodyRole.shirt: Color(0xFF8DC641),
     BodyRole.farShirt: Color(0xFF6FA52E),
     BodyRole.shorts: Color(0xFF0A2B60),
@@ -1236,9 +1327,11 @@ class PlayerRig {
     BodyRole.farSock: Color(0xFF6FA52E),
     BodyRole.boot: Color(0xFF0A2B60),
     BodyRole.farBoot: Color(0xFF163F7E),
-    BodyRole.hair: Color(0xFF0A2B60),
-    BodyRole.shade: Color(0xFFCF9068),
-    BodyRole.sheen: Color(0xFF3B64A8),
+    BodyRole.hair: Color(0xFF1D1613),
+    BodyRole.shade: Color(0xFFC18359),
+    BodyRole.sheen: Color(0xFF6B5444),
+    BodyRole.fade: Color(0x551D1613),
+    BodyRole.stubble: Color(0x30140E0B),
     BodyRole.trim: Color(0xFF0A2B60),
     BodyRole.sole: Color(0xFF2160C0),
     BodyRole.farSole: Color(0xFF194B99),
@@ -1265,7 +1358,10 @@ class PlayerRig {
   /// Whether a role is a small detail that the dust leaves out: it is white,
   /// or too small to be seen as dust.
   static bool isDetail(BodyRole role) =>
-      role == BodyRole.white || role == BodyRole.tongue;
+      role == BodyRole.white ||
+      role == BodyRole.tongue ||
+      role == BodyRole.fade ||
+      role == BodyRole.stubble;
 
   /// Whether a role is painted with the green of the shirt.
   static bool isGreen(BodyRole role) =>

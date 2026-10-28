@@ -20,7 +20,7 @@ goes over the logo.
 |---|---|
 | 0–300 | the logo comes in: the 5, then the letters one after the other, each rising into its place, and the stroke of the 5 is drawn from its start to its tip |
 | 360–500 | the ball crouches, and is thrown up to the top of the screen (it gets smaller as it goes) |
-| 640–1260 | the letters dissolve into dust that flows into a player (skin, hair, kit) |
+| 640–1260 | the letters dissolve into dust that flows into a player (skin, hair, kit): an athlete in the style of Cristiano Ronaldo (a high fade with a tall swept-up quiff, strong brows, stubble, broad shoulders and strong legs, and a 7 on the shorts), drawn as a cartoon in the colors of the logo |
 | 1260–1560 | he crouches, jumps and starts to go over backwards (the far leg swings up first) |
 | 1650 | the kick: the other leg whips over his head and meets the ball (shake, ring, lines, a green streak behind the ball) |
 | 1650–1870 | the ball flies to the right, stretched along the shot at first, nearly flat and high over him, and leaves the screen; he falls on his back |
