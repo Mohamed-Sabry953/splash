@@ -215,6 +215,13 @@ class _Frame {
 
   static final List<_Confetti> _confetti = _Confetti.burst(seed: 31, count: 64);
 
+  /// A second, smaller burst, while he is still shouting.
+  static final List<_Confetti> _confetti2 = _Confetti.burst(
+    seed: 47,
+    count: 40,
+  );
+  static const double _secondBurst = 560;
+
   /// The player has his back to where the ball goes: he faces left.
   static const double _facing = -1;
 
@@ -906,30 +913,40 @@ class _Frame {
     _paint.style = PaintingStyle.fill;
   }
 
-  /// A burst of paper from his chest when he lands: it goes up, turns over as
-  /// it goes, and falls.
+  /// A burst of paper from his chest when he lands (and a second one a little
+  /// later): it goes up, turns over as it goes, and falls.
   void _confettiBurst() {
-    final age = ms - SplashTimeline.siuLand;
-    if (age <= 0 || age > 1700) return;
     final origin = _siuChest;
-    _paint.style = PaintingStyle.fill;
-    for (final c in _confetti) {
-      final t = (age - c.delay) / 1000;
-      if (t <= 0 || t * 1000 >= c.life) continue;
-      final life = t * 1000 / c.life;
-      final x = origin.dx + math.cos(c.angle) * c.speed * t;
-      final y = origin.dy + math.sin(c.angle) * c.speed * t + 0.5 * 380 * t * t;
-      final alpha = seg(life, 0, 0.05) * (1 - seg(life, 0.62, 1));
-      if (alpha <= 0) continue;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(c.turn + c.spin * t);
-      canvas.scale(1, math.cos(c.flip * t + c.turn));
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset.zero, width: c.width, height: c.height),
-        _paint..color = c.color.withValues(alpha: alpha),
-      );
-      canvas.restore();
+    for (final (pieces, after) in [
+      (_confetti, 0.0),
+      (_confetti2, _secondBurst),
+    ]) {
+      final age = ms - SplashTimeline.siuLand - after;
+      if (age <= 0 || age > 1700) continue;
+      _paint.style = PaintingStyle.fill;
+      for (final c in pieces) {
+        final t = (age - c.delay) / 1000;
+        if (t <= 0 || t * 1000 >= c.life) continue;
+        final life = t * 1000 / c.life;
+        final x = origin.dx + math.cos(c.angle) * c.speed * t;
+        final y =
+            origin.dy + math.sin(c.angle) * c.speed * t + 0.5 * 380 * t * t;
+        final alpha = seg(life, 0, 0.05) * (1 - seg(life, 0.62, 1));
+        if (alpha <= 0) continue;
+        canvas.save();
+        canvas.translate(x, y);
+        canvas.rotate(c.turn + c.spin * t);
+        canvas.scale(1, math.cos(c.flip * t + c.turn));
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: c.width,
+            height: c.height,
+          ),
+          _paint..color = c.color.withValues(alpha: alpha),
+        );
+        canvas.restore();
+      }
     }
   }
 
