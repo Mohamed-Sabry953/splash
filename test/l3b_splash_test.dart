@@ -9,6 +9,7 @@ import 'package:l3b_splash/splash/l3b_splash_screen.dart';
 import 'package:l3b_splash/splash/logo_data.dart';
 import 'package:l3b_splash/splash/player.dart';
 import 'package:l3b_splash/splash/scene.dart';
+import 'package:l3b_splash/splash/siu_text.dart';
 import 'package:l3b_splash/splash/splash_dust.dart';
 import 'package:l3b_splash/splash/splash_painter.dart';
 import 'package:l3b_splash/splash/splash_timeline.dart';
@@ -597,6 +598,56 @@ void main() {
     });
   });
 
+  group('the word SIUUU', () {
+    test('has a letter for each of its five letters, standing on the line', () {
+      expect(SiuText.word, 'SIUUU');
+      for (var i = 0; i < SiuText.word.length; i++) {
+        final high = SiuText.height * SiuText.growth[i];
+        // (the bounds of a path with arcs are not tight: look along the line)
+        Rect? bounds;
+        for (final metric in SiuText.letter(
+          SiuText.word[i],
+          high,
+        ).computeMetrics()) {
+          for (var d = 0.0; d <= metric.length; d += 0.25) {
+            final p = metric.getTangentForOffset(d)!.position;
+            final box = Rect.fromLTRB(p.dx, p.dy, p.dx, p.dy);
+            bounds = bounds == null ? box : bounds.expandToInclude(box);
+          }
+        }
+        bounds!;
+        final w = SiuText.widthOf(SiuText.word[i]);
+        // The line of the letter is inside the box of the letter: the pen
+        // (half of it on each side) does not go past the box either.
+        expect(bounds.left, greaterThanOrEqualTo(SiuText.stroke / 2 - 0.05));
+        expect(bounds.right, lessThanOrEqualTo(w - SiuText.stroke / 2 + 0.05));
+        expect(bounds.bottom, lessThanOrEqualTo(0.05));
+        // The Is and the Us go up to the top; the S is a line that the pen
+        // takes up to the top.
+        expect(
+          bounds.top,
+          inInclusiveRange(-high - 0.05, -high + SiuText.stroke / 2 + 0.05),
+        );
+      }
+    });
+
+    test('the Us grow as the shout goes on, and the word has a width', () {
+      expect(SiuText.growth.last, greaterThan(SiuText.growth.first));
+      final widths = [
+        for (final c in SiuText.word.split('')) SiuText.widthOf(c),
+      ];
+      expect(
+        SiuText.width,
+        closeTo(
+          widths.reduce((a, b) => a + b) + SiuText.gap * (widths.length - 1),
+          0.001,
+        ),
+      );
+      // It fits in the width of a small phone with room to spare.
+      expect(SiuText.width, lessThan(120));
+    });
+  });
+
   group('the splash screen', () {
     testWidgets('says it is done once, when the logo has rested', (
       tester,
@@ -606,7 +657,7 @@ void main() {
         _app(L3bSplashScreen(haptics: false, onFinished: () => done++)),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 4250));
+      await tester.pump(const Duration(milliseconds: 4450));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -622,7 +673,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 2075));
+      await tester.pump(const Duration(milliseconds: 2175));
       expect(done, 0);
       await tester.pump(const Duration(milliseconds: 200));
       expect(done, 1);
@@ -692,7 +743,7 @@ void main() {
 
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4400; ms += 50) {
+      for (var ms = 0; ms < 4600; ms += 50) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(taps, [
@@ -709,7 +760,7 @@ void main() {
       // Nothing answers the call: it is what a phone without a motor does.
       await tester.pumpWidget(_app(L3bSplashScreen(onFinished: () {})));
       await tester.pump();
-      for (var ms = 0; ms < 4400; ms += 100) {
+      for (var ms = 0; ms < 4600; ms += 100) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(tester.takeException(), isNull);

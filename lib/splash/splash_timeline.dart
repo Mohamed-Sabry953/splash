@@ -8,7 +8,7 @@ import 'package:flutter/animation.dart';
 /// back into the letters, the ball comes home from the other side, and a shine
 /// goes over the logo.
 abstract final class SplashTimeline {
-  static const double total = 4350;
+  static const double total = 4550;
 
   /// The logo comes in.
   static const double logoIn = 300;
@@ -18,8 +18,8 @@ abstract final class SplashTimeline {
   static const double launch = 500; // ...and is thrown up
   static const double apex = 1240; // as high as it goes
   static const double strike = 1650; // the player's foot meets it
-  static const double comeBack = 2960; // it comes back in from the left
-  static const double land = 3420; // and is home
+  static const double comeBack = 3160; // it comes back in from the left
+  static const double land = 3620; // and is home
 
   // The letters become the player.
   static const double formStart = 640;
@@ -41,12 +41,12 @@ abstract final class SplashTimeline {
   static const double siuSettle = 2640; // the knees are straight again
 
   // The player becomes the letters.
-  static const double unformStart = 2740;
-  static const double unformEnd = 3400;
+  static const double unformStart = 2940; // (he shouts for a moment first)
+  static const double unformEnd = 3600;
 
   // The shine over the logo.
-  static const double shineStart = 3500;
-  static const double shineEnd = 4080;
+  static const double shineStart = 3700;
+  static const double shineEnd = 4280;
 
   /// Things that can be felt: (when, what).
   static const List<(double, SplashBeat)> beats = [

@@ -8,6 +8,7 @@ import 'l3b_logo.dart';
 import 'logo_data.dart';
 import 'player.dart';
 import 'scene.dart';
+import 'siu_text.dart';
 import 'splash_dust.dart';
 import 'splash_timeline.dart';
 
@@ -784,6 +785,7 @@ class _Frame {
       _shards(_siuShards, SplashTimeline.siuLand, feet);
     }
     _shoutRays();
+    _siuWord();
 
     // Home: a ring on the ground of the logo, and a burst to both sides.
     final home = ms - SplashTimeline.land;
@@ -820,6 +822,72 @@ class _Frame {
       facing: _facing,
     );
     return Offset(rig.hip.dx, rig.hip.dy - 26);
+  }
+
+  /// Where his head is when he has landed.
+  Offset get _siuHead => PlayerRig(
+    _poseAt(SplashTimeline.siuSettle),
+    ground: Scene.ground,
+    facing: _facing,
+  ).head;
+
+  /// The word "SIUUU" over his head, as he shouts it: the letters pop up one
+  /// after the other, bounce a little as they stay, and rise and fade when he
+  /// stops.
+  void _siuWord() {
+    final start = SplashTimeline.siuLand + 15;
+    final end = SplashTimeline.unformStart + 120;
+    if (ms < start || ms > end) return;
+    final head = _siuHead;
+    // Over the rays.
+    final baseline = head.dy - PlayerRig.headRadius - 50;
+    final out = seg(
+      ms,
+      SplashTimeline.unformStart - 120,
+      SplashTimeline.unformStart + 100,
+      Curves.easeIn,
+    );
+    var x = head.dx - SiuText.width / 2;
+    for (var i = 0; i < SiuText.word.length; i++) {
+      final letter = SiuText.word[i];
+      final w = SiuText.widthOf(letter);
+      final begin = start + 55.0 * i;
+      final pop = seg(ms, begin, begin + 260, Curves.easeOutBack);
+      final centre = x + w / 2;
+      x += w + SiuText.gap;
+      if (pop <= 0) continue;
+      final alpha = seg(ms, begin, begin + 100) * (1 - out);
+      final bounce =
+          1.4 *
+          math.sin(ms * 0.014 - i * 0.9) *
+          seg(ms, begin + 260, begin + 420);
+      final scale = (0.2 + 0.8 * pop) * (1 + 0.18 * out);
+      final path = SiuText.letter(letter, SiuText.height * SiuText.growth[i]);
+      canvas.save();
+      canvas.translate(centre, baseline + bounce - 9 * out);
+      canvas.scale(scale);
+      canvas.skew(-SiuText.slant, 0);
+      canvas.translate(-w / 2, 0);
+      _paint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = SiuText.stroke
+        ..strokeCap = StrokeCap.butt
+        ..strokeJoin = StrokeJoin.miter;
+      // A navy shadow, then the letter in the green of the 5.
+      canvas.save();
+      canvas.translate(1.7, 2.3);
+      canvas.drawPath(
+        path,
+        _paint..color = SplashPainter.navy.withValues(alpha: alpha),
+      );
+      canvas.restore();
+      canvas.drawPath(
+        path,
+        _paint..color = SplashPainter.green.withValues(alpha: alpha),
+      );
+      canvas.restore();
+    }
+    _paint.style = PaintingStyle.fill;
   }
 
   /// A burst of paper from his chest when he lands: it goes up, turns over as
